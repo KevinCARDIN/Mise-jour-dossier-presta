@@ -103,27 +103,33 @@ except Exception as e:
 
 import requests # Ajoutez cette ligne tout en haut du fichier
 
-# ... (reste du code) ...
-
 if st.button("Soumettre la mise à jour du dossier"):
-    # On prépare le paquet de données
+    # On prépare un paquet complet avec TOUTES les variables du formulaire
     payload = {
-        "statut": statut,
+        "statut": statut if statut != "Autre" else statut_autre,
         "organisation": org,
-        "email": email1,
-        "telephone": tel1,
-        "villes_selectionnees": st.session_state.get('villes_finales', [])
+        "collaborateurs": noms_collab if 'noms_collab' in locals() else (nb_equipe if 'nb_equipe' in locals() else "Seul"),
+        "contact_principal": {"email": email1, "tel": tel1},
+        "contact_secondaire": {"email": email2, "tel": tel2},
+        "disponibilites": dispos,
+        "majoration_dimanche": {"appliquee": maj_dim, "montant": montant_dim if maj_dim == "Oui" else "0"},
+        "majoration_ferie": {
+            "appliquee": maj_ferie, 
+            "jours": lesquels_ferie if maj_ferie == "Oui" else "",
+            "montant": montant_ferie if maj_ferie == "Oui" else "0"
+        },
+        "villes_selectionnees": st.session_state.get('villes_finales', []),
+        "villes_supplementaires": infos_sup
     }
     
-    # URL de votre Webhook n8n (à remplacer par la vôtre)
     webhook_url = "https://hub.cardin.cloud/webhook/Miseàjourdossierpresta"
     
     try:
         response = requests.post(webhook_url, json=payload)
         if response.status_code == 200:
             st.balloons()
-            st.success("Dossier envoyé avec succès ! Merci de votre collaboration.")
+            st.success("Dossier complet envoyé avec succès !")
         else:
-            st.error("Erreur lors de l'envoi. Veuillez réessayer.")
+            st.error(f"Erreur {response.status_code} lors de l'envoi.")
     except Exception as e:
         st.error(f"Erreur de connexion : {e}")
