@@ -19,7 +19,9 @@ if statut == "Autre":
 org = st.radio("Travaillez-vous seul ou à plusieurs ?", 
     ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"])
 
-if "remplaçant" in org or "collaborateur" in org:
+if org == "Autre":
+    situation_particuliere = st.text_area("Expliquez votre situation particulière :", placeholder="Détaillez ici...")
+elif "remplaçant" in org or "collaborateur" in org:
     noms_collab = st.text_input("Précisez le(s) nom(s) de votre/vos collaborateur(s) :")
 elif org == "En équipe":
     nb_equipe = st.number_input("Précisez le nombre de personnes dans votre équipe :", min_value=1)
@@ -104,11 +106,19 @@ except Exception as e:
 import requests # Ajoutez cette ligne tout en haut du fichier
 
 if st.button("Soumettre la mise à jour du dossier"):
-    # On prépare un paquet complet avec TOUTES les variables du formulaire
+    # On prépare le texte pour le champ 'organisation_detail'
+    if org == "Autre":
+        detail_org = f"Autre : {situation_particuliere}"
+    elif "remplaçant" in org or "collaborateur" in org:
+        detail_org = f"{org} ({noms_collab})"
+    elif org == "En équipe":
+        detail_org = f"Équipe de {nb_equipe} personnes"
+    else:
+        detail_org = org
+
     payload = {
         "statut": statut if statut != "Autre" else statut_autre,
-        "organisation": org,
-        "collaborateurs": noms_collab if 'noms_collab' in locals() else (nb_equipe if 'nb_equipe' in locals() else "Seul"),
+        "organisation": detail_org,
         "contact_principal": {"email": email1, "tel": tel1},
         "contact_secondaire": {"email": email2, "tel": tel2},
         "disponibilites": dispos,
