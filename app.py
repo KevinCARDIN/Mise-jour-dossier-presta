@@ -17,7 +17,7 @@ with col_id1:
     nom = st.text_input("NOM")
     prenom = st.text_input("Prénom")
 with col_id2:
-    nom_societe = st.text_input("Nom de société (si nécessaire)")
+    nom_societe = st.text_input("Nom de société (si applicable)")
     statut = st.selectbox("Quel est le statut de votre société ?", 
         ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
     if statut == "Autre":
