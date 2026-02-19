@@ -114,7 +114,7 @@ if st.button("Soumettre la mise à jour du dossier"):
     
     try:
         response = requests.post(webhook_url, json=payload)
-        if response.status_status == 200:
+        if response.status_code == 200:
             st.balloons()
             st.success("Dossier envoyé avec succès ! Merci de votre collaboration.")
         else:
