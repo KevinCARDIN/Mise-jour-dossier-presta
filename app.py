@@ -50,14 +50,15 @@ with col_maj2:
 # --- SECTION 3 : SECTEUR D'INTERVENTION ---
 st.header("3. Secteur d'intervention")
 
+# Initialisation du session_state pour stocker les villes trouvées
+if 'villes_trouvees' not in st.session_state:
+    st.session_state['villes_trouvees'] = []
+
 @st.cache_data
 def load_data():
-    # On force la lecture des colonnes essentielles et on ignore le reste
     df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude'])
-    # Nettoyage : on s'assure que latitude/longitude sont des nombres (on remplace les erreurs par du vide)
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-    # On supprime les lignes qui n'ont pas de coordonnées valides
     return df.dropna(subset=['latitude', 'longitude'])
 
 try:
@@ -65,35 +66,40 @@ try:
     villes_disponibles = sorted(df['nom'].unique())
     ville_base = st.selectbox("Quel est votre ville de départ ?", villes_disponibles)
     
-    # Récupération sécurisée des coordonnées
     ville_selectionnee = df[df['nom'] == ville_base].iloc[0]
     lat_dep = float(ville_selectionnee['latitude'])
     lon_dep = float(ville_selectionnee['longitude'])
 
     rayon = st.slider("Dans un rayon de (en kilomètres) :", 0, 200, 20)
 
-    # Calcul de distance robuste
     def calc_dist(row):
         return geodesic((lat_dep, lon_dep), (row['latitude'], row['longitude'])).km
 
+    # Bouton de calcul
     if st.button("Calculer les villes dans le secteur"):
         with st.spinner('Recherche en cours...'):
             df['distance'] = df.apply(calc_dist, axis=1)
             villes_proches = df[df['distance'] <= rayon].sort_values('distance')
-            
-            st.success(f"✅ {len(villes_proches)} villes trouvées dans votre secteur, veuillez retirer les villes dans lesquelles vous n'intervenez pas")
-            
-            # Affichage de la liste
-            selection = []
-            for v in villes_proches['nom'].head(100): # Limite à 100 pour la fluidité
-                if st.checkbox(v, value=True, key=f"v_{v}"):
-                    selection.append(v)
-            st.session_state['villes_finales'] = selection
-        infos_sup = st.text_area("Avez-vous d'autres villes à nous communiquer?")
+            # On stocke les noms dans le session_state pour qu'ils persistent
+            st.session_state['villes_trouvees'] = villes_proches['nom'].head(100).tolist()
+
+    # Affichage de la liste SI elle existe en mémoire (session_state)
+    if st.session_state['villes_trouvees']:
+        st.success(f"✅ {len(st.session_state['villes_trouvees'])} villes trouvées dans votre secteur, veuillez retirer les villes dans lesquelles vous n'intervenez pas")
+        
+        selection_utilisateur = []
+        for v in st.session_state['villes_trouvees']:
+            # On utilise une clé unique pour chaque checkbox basée sur le nom de la ville
+            if st.checkbox(v, value=True, key=f"cb_{v}"):
+                selection_utilisateur.append(v)
+        
+        # On met à jour la liste finale qui sera envoyée par le webhook
+        st.session_state['villes_finales'] = selection_utilisateur
+
+    infos_sup = st.text_area("Avez-vous d'autres villes à nous communiquer?")
 
 except Exception as e:
     st.error(f"Détail technique de l'erreur : {e}")
-    st.info("Vérifiez que votre fichier CSV ne contient pas de texte dans les colonnes latitude/longitude.")
 
 import requests # Ajoutez cette ligne tout en haut du fichier
 
