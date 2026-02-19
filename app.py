@@ -17,7 +17,7 @@ with col_id1:
     nom = st.text_input("NOM")
     prenom = st.text_input("Prénom")
 with col_id2:
-    nom_societe = st.text_input("Nom de société (si applicable)")
+    nom_societe = st.text_input("Nom de société (si nécessaire)")
     statut = st.selectbox("Quel est le statut de votre société ?", 
         ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
     if statut == "Autre":
@@ -25,10 +25,10 @@ with col_id2:
 
 col_contact1, col_contact2 = st.columns(2)
 with col_contact1:
-    tel1 = st.text_input("Téléphone principal", placeholder="+33...")
     email1 = st.text_input("Email principal")
+    email2 = st.text_input("Email secondaire (si nécessaire)")
 with col_contact2:
-    email2 = st.text_input("Email secondaire (si applicable)")
+    tel1 = st.text_input("Téléphone principal", placeholder="+33...")
 
 # --- SECTION 2 : ORGANISATION ET REMPLAÇANT ---
 st.header("2. Organisation et Remplaçant")
