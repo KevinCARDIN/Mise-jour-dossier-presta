@@ -91,16 +91,21 @@ if 'villes_trouvees' not in st.session_state:
 
 @st.cache_data
 def load_data():
-    # Utilisation du nom exact de la colonne vu dans ton fichier : 'code_postal'
+    # Chargement des colonnes nécessaires
     df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
+    
+    # Conversion propre des coordonnées
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
     df = df.dropna(subset=['latitude', 'longitude'])
     
-    # On force le code postal en texte et on enlève les éventuelles virgules
-    df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split(',')[0].strip())
+    # NETTOYAGE DU CODE POSTAL :
+    # 1. On transforme en string
+    # 2. On coupe au point (pour enlever le .0)
+    # 3. On s'assure qu'il n'y a pas d'espaces
+    df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip())
     
-    # CRÉATION DE L'AFFICHAGE : Ville (CP)
+    # CRÉATION DU FORMAT : Ville (CP)
     df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
     return df
 
