@@ -91,44 +91,53 @@ if 'villes_trouvees' not in st.session_state:
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude'])
+    # Utilisation du nom exact de la colonne vu dans ton fichier : 'code_postal'
+    df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-    return df.dropna(subset=['latitude', 'longitude'])
+    df = df.dropna(subset=['latitude', 'longitude'])
+    
+    # On force le code postal en texte et on enlève les éventuelles virgules
+    df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split(',')[0].strip())
+    
+    # CRÉATION DE L'AFFICHAGE : Ville (CP)
+    df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
+    return df
 
 try:
     df = load_data()
-    villes_disponibles = sorted(df['nom'].unique())
-    ville_base = st.selectbox("Quel est votre ville de départ ? *", villes_disponibles)
+    villes_disponibles = sorted(df['affichage'].unique())
     
-    ville_selectionnee = df[df['nom'] == ville_base].iloc[0]
-    lat_dep = float(ville_selectionnee['latitude'])
-    lon_dep = float(ville_selectionnee['longitude'])
+    # Le menu déroulant affiche maintenant : Aast (64180)
+    ville_base_full = st.selectbox("Quel est votre ville de départ ? *", villes_disponibles)
+    
+    # On récupère les coordonnées pour le calcul de distance
+    ville_sel = df[df['affichage'] == ville_base_full].iloc[0]
+    lat_dep, lon_dep = float(ville_sel['latitude']), float(ville_sel['longitude'])
 
     rayon = st.slider("Dans quel rayon intervenez-vous (en kilomètres) ? *", 0, 200, 20)
 
-    def calc_dist(row):
-        return geodesic((lat_dep, lon_dep), (row['latitude'], row['longitude'])).km
-
     if st.button("Calculer les villes dans le secteur"):
-        with st.spinner('Recherche en cours...'):
+        def calc_dist(row):
+            return geodesic((lat_dep, lon_dep), (row['latitude'], row['longitude'])).km
+            
+        with st.spinner('Recherche...'):
             df['distance'] = df.apply(calc_dist, axis=1)
             villes_proches = df[df['distance'] <= rayon].sort_values('distance')
-            st.session_state['villes_trouvees'] = villes_proches['nom'].head(100).tolist()
+            # On stocke le format "Ville (CP)" pour les cases à cocher
+            st.session_state['villes_trouvees'] = villes_proches['affichage'].head(100).tolist()
 
     if st.session_state['villes_trouvees']:
-        st.success(f"✅ {len(st.session_state['villes_trouvees'])} villes trouvées. Confirmez votre intervention :")
-        selection_utilisateur = []
+        st.success(f"✅ {len(st.session_state['villes_trouvees'])} villes trouvées.")
+        selection = []
         for v in st.session_state['villes_trouvees']:
+            # L'affichage des cases à cocher sera maintenant : Ville (CP)
             if st.checkbox(v, value=True, key=f"cb_{v}"):
-                selection_utilisateur.append(v)
-        st.session_state['villes_finales'] = selection_utilisateur
-
-    infos_sup_check = st.radio("Avez-vous d'autres villes sur lesquelles vous intervenez ? *", ["Non", "Oui"])
-    infos_sup = st.text_area("Précisez les villes supplémentaires :") if infos_sup_check == "Oui" else ""
+                selection.append(v)
+        st.session_state['villes_finales'] = selection
 
 except Exception as e:
-    st.error(f"Erreur technique : {e}")
+    st.error(f"Erreur lors du chargement des codes postaux : {e}")
 
 # --- SECTION 5 : INFORMATIONS COMPLÉMENTAIRES ---
 st.header("5. Informations complémentaires")
