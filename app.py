@@ -91,32 +91,26 @@ if 'villes_trouvees' not in st.session_state:
 
 @st.cache_data
 def load_data():
-    # Chargement des colonnes nécessaires
     df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
-    
-    # Conversion propre des coordonnées
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
     df = df.dropna(subset=['latitude', 'longitude'])
     
-    # NETTOYAGE DU CODE POSTAL :
-    # 1. On transforme en string
-    # 2. On coupe au point (pour enlever le .0)
-    # 3. On s'assure qu'il n'y a pas d'espaces
-    df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip())
+    # Nettoyage CP : Enlève le .0 et rajoute le 0 au début si code à 4 chiffres (ex: 1400 -> 01400)
+    df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip().zfill(5))
     
-    # CRÉATION DU FORMAT : Ville (CP)
     df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
     return df
+
+infos_sup = "" # Initialisation par défaut
 
 try:
     df = load_data()
     villes_disponibles = sorted(df['affichage'].unique())
     
-    # Le menu déroulant affiche maintenant : Aast (64180)
+    # Ville de départ obligatoire
     ville_base_full = st.selectbox("Quel est votre ville de départ ? *", villes_disponibles)
     
-    # On récupère les coordonnées pour le calcul de distance
     ville_sel = df[df['affichage'] == ville_base_full].iloc[0]
     lat_dep, lon_dep = float(ville_sel['latitude']), float(ville_sel['longitude'])
 
@@ -129,17 +123,20 @@ try:
         with st.spinner('Recherche...'):
             df['distance'] = df.apply(calc_dist, axis=1)
             villes_proches = df[df['distance'] <= rayon].sort_values('distance')
-            # On stocke le format "Ville (CP)" pour les cases à cocher
             st.session_state['villes_trouvees'] = villes_proches['affichage'].head(100).tolist()
 
     if st.session_state['villes_trouvees']:
-        st.success(f"✅ {len(st.session_state['villes_trouvees'])} villes trouvées.")
+        st.success(f"✅ {len(st.session_state['villes_trouvees'])} villes trouvées. Confirmez votre intervention :")
         selection = []
         for v in st.session_state['villes_trouvees']:
-            # L'affichage des cases à cocher sera maintenant : Ville (CP)
             if st.checkbox(v, value=True, key=f"cb_{v}"):
                 selection.append(v)
         st.session_state['villes_finales'] = selection
+
+    # Section villes supplémentaires
+    infos_sup_check = st.radio("Avez-vous d'autres villes sur lesquelles vous intervenez ? *", ["Non", "Oui"])
+    if infos_sup_check == "Oui":
+        infos_sup = st.text_area("Précisez les villes supplémentaires :")
 
 except Exception as e:
     st.error(f"Erreur lors du chargement des codes postaux : {e}")
@@ -150,7 +147,6 @@ info_libre = st.text_area("Avez-vous d'autres éléments à nous communiquer sur
 
 # --- SOUMISSION ---
 if st.button("Soumettre la mise à jour du dossier"):
-    # Vérification manuelle des champs obligatoires
     erreurs = []
     if not nom: erreurs.append("Le NOM est obligatoire.")
     if not prenom: erreurs.append("Le Prénom est obligatoire.")
@@ -164,7 +160,6 @@ if st.button("Soumettre la mise à jour du dossier"):
         for err in erreurs:
             st.error(err)
     else:
-        # Préparation du détail de l'organisation
         detail_org = org
         if org == "Autre":
             detail_org = f"Autre : {situation_particuliere}"
@@ -177,7 +172,7 @@ if st.button("Soumettre la mise à jour du dossier"):
             "identite": {
                 "nom": nom, 
                 "prenom": prenom, 
-                "siret": siret, # AJOUTÉ ICI
+                "siret": siret,
                 "societe": nom_societe
             },
             "statut": statut if statut != "Autre" else statut_autre,
@@ -193,7 +188,7 @@ if st.button("Soumettre la mise à jour du dossier"):
                 "feries": {"active": maj_ferie, "jours": lesquels_ferie, "montant": montant_ferie}
             },
             "secteur": {
-                "ville_depart": ville_base,
+                "ville_depart": ville_base_full, 
                 "rayon": rayon,
                 "villes_selectionnees": st.session_state.get('villes_finales', []),
                 "villes_sup": infos_sup
