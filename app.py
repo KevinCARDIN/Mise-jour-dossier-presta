@@ -6,7 +6,7 @@ import requests
 # Configuration du style
 st.set_page_config(page_title="Mise à jour Dossier Prestataire", layout="wide")
 
-st.title("Mise à jour dossier prestataire et tableau des codes postaux")
+st.title("Partenaires LetaHost : Merci de compléter les informations concernant votre activité")
 st.write("Merci de bien vouloir nous transmettre les informations suivantes (les champs avec * sont obligatoires) :")
 
 # --- SECTION 1 : INFORMATIONS GÉNÉRALES ---
