@@ -42,7 +42,7 @@ st.markdown("""
 3. Allez dans **Mes attestations** → **Attestation de vigilance** et téléchargez le PDF.
 *Note : Si votre entreprise a moins de 90 jours, l'URSSAF délivrera une attestation provisoire.*
 """)
-file_vigilance = st.file_uploader("Téléchargez votre attestation (PDF, JPG, PNG) *", type=["pdf", "png", "jpg", "jpeg"])
+file_vigilance = st.file_uploader("Téléchargez votre attestation (PDF) *", type=["pdf"])
 
 # --- SECTION 2 : ORGANISATION ET REMPLAÇANT ---
 st.header("2. Organisation et Remplaçant")
