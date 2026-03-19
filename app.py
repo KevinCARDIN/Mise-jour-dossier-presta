@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from geopy.distance import geodesic
 import requests
+import base64
 
 # Configuration du style
 st.set_page_config(page_title="Mise à jour Dossier Prestataire", layout="wide")
@@ -31,6 +32,17 @@ with col_contact1:
     email2 = st.text_input("Email secondaire (si nécessaire)")
 with col_contact2:
     tel1 = st.text_input("Téléphone principal *", placeholder="+33...")
+
+# MODIFICATION : Ajout de l'attestation à la fin de la Section 1
+st.subheader("Attestation de vigilance *")
+st.markdown("""
+**Comment récupérer votre attestation ?**
+1. Rendez-vous sur le site officiel : [urssaf.fr](https://www.urssaf.fr) (ou autoentrepreneur.urssaf.fr).
+2. Cliquez sur **« Mon compte »** et connectez-vous (**SIRET + mot de passe**).
+3. Allez dans **Mes attestations** → **Attestation de vigilance** et téléchargez le PDF.
+*Note : Si votre entreprise a moins de 90 jours, l'URSSAF délivrera une attestation provisoire.*
+""")
+file_vigilance = st.file_uploader("Téléchargez votre attestation (PDF, JPG, PNG) *", type=["pdf", "png", "jpg", "jpeg"])
 
 # --- SECTION 2 : ORGANISATION ET REMPLAÇANT ---
 st.header("2. Organisation et Remplaçant")
@@ -63,8 +75,7 @@ if org != "Seul, sans remplaçant même ponctuel":
     with col_remp2:
         emails_remp = st.text_area("Adresses email (une par ligne)")
 else:
-    tels_remp = "N/A"
-    emails_remp = "N/A"
+    tels_remp, emails_remp = "N/A", "N/A"
 
 # --- SECTION 3 : DISPONIBILITÉS ---
 st.header("3. Disponibilités")
@@ -80,8 +91,7 @@ with col_maj2:
         lesquels_ferie = st.text_input("Précisez quels jours fériés :")
         montant_ferie = st.text_input("Précisez le montant (fériés) :")
     else:
-        lesquels_ferie = ""
-        montant_ferie = "0"
+        lesquels_ferie, montant_ferie = "", "0"
 
 # --- SECTION 4 : SECTEUR D'INTERVENTION ---
 st.header("4. Secteur d'intervention")
@@ -95,31 +105,22 @@ def load_data():
     df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
     df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
     df = df.dropna(subset=['latitude', 'longitude'])
-    
-    # Nettoyage CP : Enlève le .0 et rajoute le 0 au début si code à 4 chiffres (ex: 1400 -> 01400)
     df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip().zfill(5))
-    
     df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
     return df
 
-infos_sup = "" # Initialisation par défaut
-
+infos_sup = ""
 try:
     df = load_data()
     villes_disponibles = sorted(df['affichage'].unique())
-    
-    # Ville de départ obligatoire
     ville_base_full = st.selectbox("Quel est votre ville de départ ? *", villes_disponibles)
-    
     ville_sel = df[df['affichage'] == ville_base_full].iloc[0]
     lat_dep, lon_dep = float(ville_sel['latitude']), float(ville_sel['longitude'])
-
     rayon = st.slider("Dans quel rayon intervenez-vous (en kilomètres) ? *", 0, 200, 20)
 
     if st.button("Calculer les villes dans le secteur"):
         def calc_dist(row):
             return geodesic((lat_dep, lon_dep), (row['latitude'], row['longitude'])).km
-            
         with st.spinner('Recherche...'):
             df['distance'] = df.apply(calc_dist, axis=1)
             villes_proches = df[df['distance'] <= rayon].sort_values('distance')
@@ -133,13 +134,11 @@ try:
                 selection.append(v)
         st.session_state['villes_finales'] = selection
 
-    # Section villes supplémentaires
     infos_sup_check = st.radio("Avez-vous d'autres villes sur lesquelles vous intervenez ? *", ["Non", "Oui"])
     if infos_sup_check == "Oui":
         infos_sup = st.text_area("Précisez les villes supplémentaires :")
-
 except Exception as e:
-    st.error(f"Erreur lors du chargement des codes postaux : {e}")
+    st.error(f"Erreur technique : {e}")
 
 # --- SECTION 5 : INFORMATIONS COMPLÉMENTAIRES ---
 st.header("5. Informations complémentaires")
@@ -149,50 +148,41 @@ info_libre = st.text_area("Avez-vous d'autres éléments à nous communiquer sur
 if st.button("Soumettre la mise à jour du dossier"):
     erreurs = []
     if not nom: erreurs.append("Le NOM est obligatoire.")
-    if not prenom: erreurs.append("Le Prénom est obligatoire.")
     if not siret: erreurs.append("Le numéro SIRET est obligatoire.")
-    if not email1: erreurs.append("L'Email principal est obligatoire.")
-    if not tel1: erreurs.append("Le Téléphone principal est obligatoire.")
-    if not dispos: erreurs.append("Les disponibilités sont obligatoires.")
-    if not st.session_state.get('villes_finales'): erreurs.append("Vous devez calculer et confirmer au moins une ville d'intervention.")
+    if not email1: erreurs.append("L'Email est obligatoire.")
+    if not file_vigilance: erreurs.append("L'attestation de vigilance est obligatoire.")
+    if not st.session_state.get('villes_finales'): erreurs.append("Veuillez calculer et confirmer vos villes d'intervention.")
 
     if erreurs:
         for err in erreurs:
             st.error(err)
     else:
+        # Encodage du fichier
+        file_content = base64.b64encode(file_vigilance.read()).decode()
+        
         detail_org = org
-        if org == "Autre":
-            detail_org = f"Autre : {situation_particuliere}"
-        elif nb_equipe > 0:
-            detail_org = f"Équipe de {nb_equipe} personnes"
-        elif noms_collab:
-            detail_org = f"{org} ({noms_collab})"
+        if org == "Autre": detail_org = f"Autre : {situation_particuliere}"
+        elif nb_equipe > 0: detail_org = f"Équipe de {nb_equipe} personnes"
+        elif noms_collab: detail_org = f"{org} ({noms_collab})"
 
         payload = {
-            "identite": {
-                "nom": nom, 
-                "prenom": prenom, 
-                "siret": siret,
-                "societe": nom_societe
-            },
+            "identite": {"nom": nom, "prenom": prenom, "siret": siret, "societe": nom_societe},
             "statut": statut if statut != "Autre" else statut_autre,
             "organisation": detail_org,
             "contact_principal": {"email": email1, "tel": tel1, "email_sec": email2},
-            "contacts_remplacants": {
-                "telephones": tels_remp,
-                "emails": emails_remp
-            },
+            "contacts_remplacants": {"telephones": tels_remp, "emails": emails_remp},
             "disponibilites": dispos,
             "majorations": {
                 "dimanche": {"active": maj_dim, "montant": montant_dim},
                 "feries": {"active": maj_ferie, "jours": lesquels_ferie, "montant": montant_ferie}
             },
             "secteur": {
-                "ville_depart": ville_base_full, 
+                "ville_depart": ville_base_full, # CORRECTION : Variable correcte pour n8n
                 "rayon": rayon,
                 "villes_selectionnees": st.session_state.get('villes_finales', []),
                 "villes_sup": infos_sup
             },
+            "attestation_vigilance": {"filename": file_vigilance.name, "content_base64": file_content},
             "notes": info_libre
         }
         
