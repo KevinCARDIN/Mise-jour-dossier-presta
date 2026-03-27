@@ -45,9 +45,9 @@ def set_bg_local(main_bg_img):
         '''
         st.markdown(page_bg_img, unsafe_allow_html=True)
     except:
-        st.warning("⚠️ Image 'fond.jpg' non trouvée.")
+        st.warning("⚠️ Image 'fond.png' non trouvée.")
 
-set_bg_local("fond.jpg")
+set_bg_local("fond.png")
 
 # --- INITIALISATION DE L'ÉTAT ---
 if 'step' not in st.session_state:
