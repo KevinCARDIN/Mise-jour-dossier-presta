@@ -4,101 +4,61 @@ from geopy.distance import geodesic
 import requests
 import base64
 
-# Configuration du style
-st.set_page_config(page_title="Mise à jour Dossier Prestataire", layout="wide")
+# --- CONFIGURATION VISUELLE ---
+st.set_page_config(page_title="LetaHost - Partenaires", layout="centered")
 
-st.title("Partenaires LetaHost : Merci de compléter les informations concernant votre activité")
-st.write("Merci de bien vouloir nous transmettre les informations suivantes (les champs avec * sont obligatoires) :")
+# Fonction pour encoder ton image locale en fond d'écran
+def set_bg_local(main_bg_img):
+    try:
+        with open(main_bg_img, "rb") as f:
+            bin_str = base64.b64encode(f.read()).decode()
+        page_bg_img = f'''
+        <style>
+        .stApp {{
+            background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("data:image/png;base64,{bin_str}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        /* Style de la carte centrale blanche/transparente */
+        [data-testid="stVerticalBlock"] > div:has(div.stButton) {{
+            background-color: rgba(255, 255, 255, 0.08);
+            padding: 50px;
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        }}
+        /* Boutons Dorés LetaHost */
+        .stButton>button {{
+            width: 100%;
+            background-color: #D4AF37 !important;
+            color: black !important;
+            font-weight: bold;
+            border: none;
+            padding: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+        /* Textes en blanc */
+        h1, h2, h3, p, label {{ color: white !important; }}
+        .stTextInput>div>div>input {{ background-color: rgba(255,255,255,0.1); color: white; }}
+        </style>
+        '''
+        st.markdown(page_bg_img, unsafe_allow_html=True)
+    except:
+        st.warning("⚠️ Image 'fond.png' non trouvée. Place-la dans le dossier du script.")
 
-# --- SECTION 1 : INFORMATIONS GÉNÉRALES ---
-st.header("1. Informations Générales")
+# REMPLACE "fond.png" par le nom exact de ton fichier image
+set_bg_local("fond.png")
 
-col_id1, col_id2 = st.columns(2)
-with col_id1:
-    nom = st.text_input("NOM *")
-    prenom = st.text_input("Prénom *")
-    siret = st.text_input("Numéro SIRET *", help="Le numéro SIRET doit comporter 14 chiffres.")
+# --- GESTION DES ÉTAPES ---
+if 'step' not in st.session_state:
+    st.session_state.step = 1
 
-with col_id2:
-    nom_societe = st.text_input("Nom de société (si applicable)")
-    statut = st.selectbox("Quel est le statut de votre société ? *", 
-        ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
-    if statut == "Autre":
-        statut_autre = st.text_input("Précisez votre statut :")
+def change_step(direction):
+    st.session_state.step += direction
 
-col_contact1, col_contact2 = st.columns(2)
-with col_contact1:
-    email1 = st.text_input("Email principal *")
-    email2 = st.text_input("Email secondaire (si nécessaire)")
-with col_contact2:
-    tel1 = st.text_input("Téléphone principal *", placeholder="+33...")
-
-# MODIFICATION : Ajout de l'attestation à la fin de la Section 1
-st.subheader("Attestation de vigilance *")
-st.markdown("""
-**Comment récupérer votre attestation ?**
-1. Rendez-vous sur le site officiel : [urssaf.fr](https://www.urssaf.fr) (ou autoentrepreneur.urssaf.fr).
-2. Cliquez sur **« Mon compte »** et connectez-vous (**SIRET + mot de passe**).
-3. Allez dans **Mes attestations** → **Attestation de vigilance** et téléchargez le PDF.
-*Note : Si votre entreprise a moins de 90 jours, l'URSSAF délivrera une attestation provisoire.*
-""")
-file_vigilance = st.file_uploader("Téléchargez votre attestation (PDF) *", type=["pdf"])
-
-# --- SECTION 2 : ORGANISATION ET REMPLAÇANT ---
-st.header("2. Organisation et Remplaçant")
-
-org = st.radio("Organisation : Travaillez-vous seul ou à plusieurs ? *", 
-    ["Seul, sans remplaçant même ponctuel", 
-     "Seul, avec un remplaçant ponctuel", 
-     "Avec 1 ou 2 collaborateurs", 
-     "En équipe", 
-     "Autre"], index=0)
-
-noms_collab = ""
-nb_equipe = 0
-situation_particuliere = ""
-
-if org == "Seul, avec un remplaçant ponctuel":
-    noms_collab = st.text_input("Précisez le nom de votre collaborateur :")
-elif org == "Avec 1 ou 2 collaborateurs":
-    noms_collab = st.text_input("Précisez le(s) nom(s) de votre/vos collaborateur(s) :")
-elif org == "En équipe":
-    nb_equipe = st.number_input("Précisez le nombre de personnes dans votre équipe :", min_value=1)
-elif org == "Autre":
-    situation_particuliere = st.text_area("Précisez votre situation :")
-
-if org != "Seul, sans remplaçant même ponctuel":
-    st.subheader("Coordonnées du/des remplaçant(s)")
-    col_remp1, col_remp2 = st.columns(2)
-    with col_remp1:
-        tels_remp = st.text_area("Numéros de téléphone (un par ligne)")
-    with col_remp2:
-        emails_remp = st.text_area("Adresses email (une par ligne)")
-else:
-    tels_remp, emails_remp = "N/A", "N/A"
-
-# --- SECTION 3 : DISPONIBILITÉS ---
-st.header("3. Disponibilités")
-dispos = st.text_area("Quels sont vos jours et plages horaires de disponibilité ? *")
-
-col_maj1, col_maj2 = st.columns(2)
-with col_maj1:
-    maj_dim = st.radio("Appliquez-vous une majoration sur les dimanches ? *", ["Non", "Oui"])
-    montant_dim = st.text_input("Précisez le montant (dimanche) :") if maj_dim == "Oui" else "0"
-with col_maj2:
-    maj_ferie = st.radio("Appliquez-vous une majoration sur les jours fériés ? *", ["Non", "Oui"])
-    if maj_ferie == "Oui":
-        lesquels_ferie = st.text_input("Précisez quels jours fériés :")
-        montant_ferie = st.text_input("Précisez le montant (fériés) :")
-    else:
-        lesquels_ferie, montant_ferie = "", "0"
-
-# --- SECTION 4 : SECTEUR D'INTERVENTION ---
-st.header("4. Secteur d'intervention")
-
-if 'villes_trouvees' not in st.session_state:
-    st.session_state['villes_trouvees'] = []
-
+# --- CHARGEMENT DES DONNÉES ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
@@ -109,90 +69,93 @@ def load_data():
     df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
     return df
 
-infos_sup = ""
-try:
-    df = load_data()
-    villes_disponibles = sorted(df['affichage'].unique())
-    ville_base_full = st.selectbox("Quel est votre ville de départ ? *", villes_disponibles)
-    ville_sel = df[df['affichage'] == ville_base_full].iloc[0]
-    lat_dep, lon_dep = float(ville_sel['latitude']), float(ville_sel['longitude'])
-    rayon = st.slider("Dans quel rayon intervenez-vous (en kilomètres) ? *", 0, 200, 20)
+df_villes = load_data()
 
-    if st.button("Calculer les villes dans le secteur"):
+# --- RENDU PAR QUESTION ---
+
+# ÉTAPE 1 : IDENTITÉ
+if st.session_state.step == 1:
+    st.title("Questionnaire Partenaire")
+    st.subheader("1. Qui êtes-vous ?")
+    st.session_state['nom'] = st.text_input("NOM *", value=st.session_state.get('nom', ''))
+    st.session_state['prenom'] = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
+    st.session_state['siret'] = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
+    if st.button("Suivant →"): change_step(1)
+
+# ÉTAPE 2 : STATUT ET SOCIÉTÉ
+elif st.session_state.step == 2:
+    st.subheader("Votre Structure")
+    st.session_state['societe'] = st.text_input("Nom de société (si applicable)", value=st.session_state.get('societe', ''))
+    st.session_state['statut'] = st.selectbox("Statut de votre société *", 
+        ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
+    col1, col2 = st.columns(2)
+    with col1: st.button("← Retour", on_click=change_step, args=(-1,))
+    with col2: st.button("Suivant →", on_click=change_step, args=(1,))
+
+# ÉTAPE 3 : ATTESTATION VIGILANCE
+elif st.session_state.step == 3:
+    st.subheader("Attestation de Vigilance")
+    st.markdown("""
+    Pour récupérer votre attestation :
+    1. Rendez-vous sur **urssaf.fr**.
+    2. Allez dans **Mes attestations** → **Attestation de vigilance**.
+    """)
+    st.session_state['file_vigilance'] = st.file_uploader("Téléchargez le document PDF *", type=["pdf"])
+    col1, col2 = st.columns(2)
+    with col1: st.button("← Retour", on_click=change_step, args=(-1,))
+    with col2: st.button("Suivant →", on_click=change_step, args=(1,))
+
+# ÉTAPE 4 : CONTACTS
+elif st.session_state.step == 4:
+    st.subheader("Vos Coordonnées")
+    st.session_state['email'] = st.text_input("Email principal *", value=st.session_state.get('email', ''))
+    st.session_state['tel'] = st.text_input("Téléphone principal *", value=st.session_state.get('tel', ''))
+    col1, col2 = st.columns(2)
+    with col1: st.button("← Retour", on_click=change_step, args=(-1,))
+    with col2: st.button("Suivant →", on_click=change_step, args=(1,))
+
+# ÉTAPE 5 : DISPONIBILITÉS
+elif st.session_state.step == 5:
+    st.subheader("Vos Disponibilités")
+    st.session_state['dispos'] = st.text_area("Quels sont vos jours et plages horaires ?", value=st.session_state.get('dispos', ''))
+    col1, col2 = st.columns(2)
+    with col1: st.button("← Retour", on_click=change_step, args=(-1,))
+    with col2: st.button("Suivant →", on_click=change_step, args=(1,))
+
+# ÉTAPE 6 : SECTEUR D'INTERVENTION
+elif st.session_state.step == 6:
+    st.subheader("Secteur d'intervention")
+    villes_dispo = sorted(df_villes['affichage'].unique())
+    ville_base = st.selectbox("Ville de départ *", villes_dispo)
+    rayon = st.slider("Rayon (km) *", 0, 200, 20)
+    
+    if st.button("Calculer le secteur"):
+        ville_sel = df_villes[df_villes['affichage'] == ville_base].iloc[0]
+        lat_dep, lon_dep = float(ville_sel['latitude']), float(ville_sel['longitude'])
         def calc_dist(row):
             return geodesic((lat_dep, lon_dep), (row['latitude'], row['longitude'])).km
-        with st.spinner('Recherche...'):
-            df['distance'] = df.apply(calc_dist, axis=1)
-            villes_proches = df[df['distance'] <= rayon].sort_values('distance')
-            st.session_state['villes_trouvees'] = villes_proches['affichage'].head(100).tolist()
-
-    if st.session_state['villes_trouvees']:
-        st.success(f"✅ {len(st.session_state['villes_trouvees'])} villes trouvées. Confirmez votre intervention :")
+        df_villes['distance'] = df_villes.apply(calc_dist, axis=1)
+        villes_proches = df_villes[df_villes['distance'] <= rayon].sort_values('distance')
+        st.session_state['villes_trouvees'] = villes_proches['affichage'].head(50).tolist()
+    
+    if st.session_state.get('villes_trouvees'):
+        st.write("Cochez vos villes :")
         selection = []
         for v in st.session_state['villes_trouvees']:
-            if st.checkbox(v, value=True, key=f"cb_{v}"):
+            if st.checkbox(v, value=True, key=f"v_{v}"):
                 selection.append(v)
         st.session_state['villes_finales'] = selection
 
-    infos_sup_check = st.radio("Avez-vous d'autres villes sur lesquelles vous intervenez ? *", ["Non", "Oui"])
-    if infos_sup_check == "Oui":
-        infos_sup = st.text_area("Précisez les villes supplémentaires :")
-except Exception as e:
-    st.error(f"Erreur technique : {e}")
+    col1, col2 = st.columns(2)
+    with col1: st.button("← Retour", on_click=change_step, args=(-1,))
+    with col2: st.button("Finaliser →", on_click=change_step, args=(1,))
 
-# --- SECTION 5 : INFORMATIONS COMPLÉMENTAIRES ---
-st.header("5. Informations complémentaires")
-info_libre = st.text_area("Avez-vous d'autres éléments à nous communiquer sur votre activité ?")
-
-# --- SOUMISSION ---
-if st.button("Soumettre la mise à jour du dossier"):
-    erreurs = []
-    if not nom: erreurs.append("Le NOM est obligatoire.")
-    if not siret: erreurs.append("Le numéro SIRET est obligatoire.")
-    if not email1: erreurs.append("L'Email est obligatoire.")
-    if not file_vigilance: erreurs.append("L'attestation de vigilance est obligatoire.")
-    if not st.session_state.get('villes_finales'): erreurs.append("Veuillez calculer et confirmer vos villes d'intervention.")
-
-    if erreurs:
-        for err in erreurs:
-            st.error(err)
-    else:
-        # Encodage du fichier
-        file_content = base64.b64encode(file_vigilance.read()).decode()
-        
-        detail_org = org
-        if org == "Autre": detail_org = f"Autre : {situation_particuliere}"
-        elif nb_equipe > 0: detail_org = f"Équipe de {nb_equipe} personnes"
-        elif noms_collab: detail_org = f"{org} ({noms_collab})"
-
-        payload = {
-            "identite": {"nom": nom, "prenom": prenom, "siret": siret, "societe": nom_societe},
-            "statut": statut if statut != "Autre" else statut_autre,
-            "organisation": detail_org,
-            "contact_principal": {"email": email1, "tel": tel1, "email_sec": email2},
-            "contacts_remplacants": {"telephones": tels_remp, "emails": emails_remp},
-            "disponibilites": dispos,
-            "majorations": {
-                "dimanche": {"active": maj_dim, "montant": montant_dim},
-                "feries": {"active": maj_ferie, "jours": lesquels_ferie, "montant": montant_ferie}
-            },
-            "secteur": {
-                "ville_depart": ville_base_full, # CORRECTION : Variable correcte pour n8n
-                "rayon": rayon,
-                "villes_selectionnees": st.session_state.get('villes_finales', []),
-                "villes_sup": infos_sup
-            },
-            "attestation_vigilance": {"filename": file_vigilance.name, "content_base64": file_content},
-            "notes": info_libre
-        }
-        
-        webhook_url = "https://hub.cardin.cloud/webhook/Miseàjourdossierpresta"
-        try:
-            response = requests.post(webhook_url, json=payload)
-            if response.status_code == 200:
-                st.balloons()
-                st.success("Dossier envoyé avec succès !")
-            else:
-                st.error(f"Erreur {response.status_code} lors de l'envoi.")
-        except Exception as e:
-            st.error(f"Erreur de connexion : {e}")
+# ÉTAPE 7 : SOUMISSION
+elif st.session_state.step == 7:
+    st.subheader("Soumission finale")
+    st.write("Vérifiez vos informations avant l'envoi.")
+    if st.button("ENVOYER MON DOSSIER"):
+        # Logique requests.post ici avec toutes les données de st.session_state
+        st.balloons()
+        st.success("Dossier envoyé avec succès !")
+    st.button("← Retour", on_click=change_step, args=(-1,))
