@@ -14,11 +14,11 @@ def set_bg_local(main_bg_img):
         page_bg_img = f'''
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}");
+            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bin_str}");
             background-size: cover;
             background-attachment: fixed;
         }}
-        /* Boutons Jaunes Épurés et Centrés */
+        /* Boutons Jaunes Centrés */
         div.stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
@@ -27,19 +27,18 @@ def set_bg_local(main_bg_img):
             padding: 10px 30px !important;
             border-radius: 5px !important;
             display: block;
-            margin: 0 auto;
+            margin: 20px auto;
             width: 250px !important;
         }}
-        /* Style des textes et inputs */
+        /* Style des textes et entrées */
         h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
         .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div {{ 
             background-color: rgba(255,255,255,0.1) !important; 
             color: white !important; 
             border: 1px solid rgba(255,255,255,0.2) !important;
         }}
-        /* Centrage des widgets */
+        /* Centrage Radio */
         div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }}
-        div.stSelectbox {{ max-width: 500px; margin: 0 auto; }}
         </style>
         '''
         st.markdown(page_bg_img, unsafe_allow_html=True)
@@ -48,15 +47,14 @@ def set_bg_local(main_bg_img):
 
 set_bg_local("fond.png")
 
-# --- INITIALISATION DE L'ÉTAT ---
+# --- INITIALISATION ---
 if 'step' not in st.session_state: st.session_state.step = 1
-if 'villes_trouvees' not in st.session_state: st.session_state['villes_trouvees'] = []
-if 'villes_finales' not in st.session_state: st.session_state['villes_finales'] = []
+if 'villes_trouvees' not in st.session_state: st.session_state.villes_trouvees = []
+if 'villes_finales' not in st.session_state: st.session_state.villes_finales = []
 
 def change_step(direction):
     st.session_state.step += direction
 
-# --- CHARGEMENT DES DONNÉES ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
@@ -69,54 +67,43 @@ def load_data():
 
 df_v = load_data()
 
-# --- FORMULAIRE PAR ÉTAPES ---
+# --- ÉTAPES ---
 
-# ÉTAPE 1 : IDENTITÉ
+# 1. IDENTITÉ
 if st.session_state.step == 1:
     st.header("1. Vos informations personnelles")
-    st.session_state['nom'] = st.text_input("NOM *", value=st.session_state.get('nom', ''))
-    st.session_state['prenom'] = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
-    st.session_state['siret'] = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
-    
+    st.session_state.nom = st.text_input("NOM *", value=st.session_state.get('nom', ''))
+    st.session_state.prenom = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
+    st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
     if st.button("Continuer"):
-        if st.session_state['nom'] and st.session_state['prenom'] and st.session_state['siret']:
-            change_step(1)
-        else:
-            st.error("Nom, Prénom et SIRET sont obligatoires.")
+        if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
+        else: st.error("Champs obligatoires manquants.")
 
-# ÉTAPE 2 : SOCIÉTÉ & CONTACT (AVEC SECONDAIRES)
+# 2. CONTACTS
 elif st.session_state.step == 2:
     st.header("2. Coordonnées & Structure")
-    st.session_state['societe'] = st.text_input("Nom de société (si applicable)", value=st.session_state.get('societe', ''))
-    st.session_state['statut'] = st.selectbox("Statut de votre société *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
-    
+    st.session_state.societe = st.text_input("Nom de société (si applicable)", value=st.session_state.get('societe', ''))
+    st.session_state.statut = st.selectbox("Statut de votre société *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
     col1, col2 = st.columns(2)
     with col1:
-        st.session_state['tel1'] = st.text_input("Téléphone principal *", value=st.session_state.get('tel1', ''))
-        st.session_state['tel2'] = st.text_input("Téléphone secondaire", value=st.session_state.get('tel2', ''))
+        st.session_state.tel1 = st.text_input("Téléphone principal *", value=st.session_state.get('tel1', ''))
+        st.session_state.tel2 = st.text_input("Téléphone secondaire", value=st.session_state.get('tel2', ''))
     with col2:
-        st.session_state['email1'] = st.text_input("Email principal *", value=st.session_state.get('email1', ''))
-        st.session_state['email2'] = st.text_input("Email secondaire", value=st.session_state.get('email2', ''))
+        st.session_state.email1 = st.text_input("Email principal *", value=st.session_state.get('email1', ''))
+        st.session_state.email2 = st.text_input("Email secondaire", value=st.session_state.get('email2', ''))
     
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
-    with c2: 
+    with c2:
         if st.button("Suivant"):
-            if st.session_state['tel1'] and st.session_state['email1']: change_step(1)
-            else: st.error("Le téléphone et l'email principaux sont obligatoires.")
+            if st.session_state.tel1 and st.session_state.email1: change_step(1)
+            else: st.error("Téléphone et Email principaux obligatoires.")
 
-# ÉTAPE 3 : ATTESTATION VIGILANCE
+# 3. ATTESTATION
 elif st.session_state.step == 3:
     st.header("3. Attestation de vigilance")
-    st.markdown("""
-    Pour récupérer votre attestation de vigilance, rendez-vous sur le site officiel : 
-    **[urssaf.fr](https://www.urssaf.fr)**
-    1. Cliquer sur **« Mon compte »** et se connecter (SIRET + mot de passe).
-    2. Aller dans **Mes attestations** → **Attestation de vigilance**.
-    3. Téléchargez le PDF.
-    """)
-    st.session_state['file_vigilance'] = st.file_uploader("Téléchargez votre attestation *", type=["pdf"])
-    
+    st.markdown("Allez sur **urssaf.fr** → Mon compte → Mes attestations → Attestation de vigilance.")
+    st.session_state.file_vigilance = st.file_uploader("Téléchargez le PDF *", type=["pdf"])
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
     with c2:
@@ -124,72 +111,96 @@ elif st.session_state.step == 3:
             if st.session_state.get('file_vigilance'): change_step(1)
             else: st.error("L'attestation est obligatoire.")
 
-# ÉTAPE 4 : ORGANISATION
+# 4. ORGANISATION (Conditionnelle)
 elif st.session_state.step == 4:
     st.header("4. Organisation")
     org = st.radio("Travaillez-vous seul ou à plusieurs ? *", ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"])
-    st.session_state['org'] = org
-    
+    st.session_state.org = org
     if "collaborateurs" in org or "remplaçant" in org:
-        st.session_state['noms_collab'] = st.text_input("Nom(s) du/des collaborateur(s) :", value=st.session_state.get('noms_collab', ''))
+        st.session_state.noms_collab = st.text_input("Nom(s) du/des collaborateur(s) :", value=st.session_state.get('noms_collab', ''))
     elif org == "En équipe":
-        st.session_state['nb_equipe'] = st.number_input("Nombre de personnes :", min_value=1, value=st.session_state.get('nb_equipe', 1))
-    elif org == "Autre":
-        st.session_state['situation_particuliere'] = st.text_area("Précisez votre situation :", value=st.session_state.get('situation_particuliere', ''))
-
+        st.session_state.nb_equipe = st.number_input("Nombre de personnes :", min_value=1, value=st.session_state.get('nb_equipe', 1))
     if org != "Seul, sans remplaçant même ponctuel":
-        st.subheader("Coordonnées du/des remplaçant(s)")
-        st.session_state['tels_remp'] = st.text_area("Téléphones remplaçants :", value=st.session_state.get('tels_remp', ''))
-        st.session_state['emails_remp'] = st.text_area("Emails remplaçants :", value=st.session_state.get('emails_remp', ''))
-
+        st.session_state.tels_remp = st.text_area("Téléphones remplaçants :", value=st.session_state.get('tels_remp', ''))
+        st.session_state.emails_remp = st.text_area("Emails remplaçants :", value=st.session_state.get('emails_remp', ''))
+    
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
     with c2: st.button("Suivant", on_click=change_step, args=(1,))
 
-# ÉTAPE 5 : DISPOS & TARIFS
+# 5. DISPOS & TARIFS
 elif st.session_state.step == 5:
     st.header("5. Disponibilités & Tarifs")
-    st.session_state['dispos'] = st.text_area("Vos jours et plages horaires de disponibilité ? *", value=st.session_state.get('dispos', ''))
+    st.session_state.dispos = st.text_area("Vos jours et plages horaires ? *", value=st.session_state.get('dispos', ''))
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.session_state.maj_dim = st.radio("Majoration Dimanche ?", ["Non", "Oui"])
+        if st.session_state.maj_dim == "Oui":
+            st.session_state.montant_dim = st.text_input("Montant Dimanche :", value=st.session_state.get('montant_dim', '0'))
+    with col_b:
+        st.session_state.maj_ferie = st.radio("Majoration Jours Fériés ?", ["Non", "Oui"])
+        if st.session_state.maj_ferie == "Oui":
+            st.session_state.lesquels_ferie = st.text_input("Quels jours ?", value=st.session_state.get('lesquels_ferie', ''))
+            st.session_state.montant_ferie = st.text_input("Montant Fériés :", value=st.session_state.get('montant_ferie', '0'))
     
-    col_dim, col_ferie = st.columns(2)
-    with col_dim:
-        maj_dim = st.radio("Majoration Dimanche ?", ["Non", "Oui"], key="rd_dim")
-        st.session_state['maj_dim'] = maj_dim
-        if maj_dim == "Oui":
-            st.session_state['montant_dim'] = st.text_input("Montant Dimanche :", value=st.session_state.get('montant_dim', '0'))
-            
-    with col_ferie:
-        maj_ferie = st.radio("Majoration Jours Fériés ?", ["Non", "Oui"], key="rd_fer")
-        st.session_state['maj_ferie'] = maj_ferie
-        if maj_ferie == "Oui":
-            st.session_state['lesquels_ferie'] = st.text_input("Quels jours ?", value=st.session_state.get('lesquels_ferie', ''))
-            st.session_state['montant_ferie'] = st.text_input("Montant Fériés :", value=st.session_state.get('montant_ferie', '0'))
-
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
-    with c2: 
+    with c2:
         if st.button("Suivant"):
-            if st.session_state['dispos']: change_step(1)
-            else: st.error("Les disponibilités sont obligatoires.")
+            if st.session_state.dispos: change_step(1)
+            else: st.error("Disponibilités obligatoires.")
 
-# ÉTAPE 6 : SECTEUR
+# 6. SECTEUR (Correction bug affichage)
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
     v_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
-    st.session_state['ville_base'] = v_base
+    st.session_state.ville_base_full = v_base
     rayon = st.slider("Rayon (km) *", 0, 200, 20)
-    st.session_state['rayon'] = rayon
-    
+    st.session_state.rayon = rayon
+
     if st.button("Calculer les villes"):
         v_sel = df_v[df_v['affichage'] == v_base].iloc[0]
-        lat_d, lon_d = float(v_sel['latitude']), float(v_sel['longitude'])
-        def dist(r): return geodesic((lat_d, lon_d), (r['latitude'], r['longitude'])).km
+        def dist(r): return geodesic((v_sel['latitude'], v_sel['longitude']), (r['latitude'], r['longitude'])).km
         df_v['d'] = df_v.apply(dist, axis=1)
-        res = df_v[df_v['d'] <= rayon].sort_values('d')
-        st.session_state['villes_trouvees'] = res['affichage'].head(100).tolist()
-    
-    if st.session_state.get('villes_trouvees'):
+        st.session_state.villes_trouvees = df_v[df_v['d'] <= rayon].sort_values('d')['affichage'].head(100).tolist()
+
+    if st.session_state.villes_trouvees:
+        st.write("Sélectionnez vos villes :")
         selection = []
-        for v in st.session_state['villes_trouvees']:
-            if st.checkbox(v, value=True, key=v): selection.append(v)
-        st.session_state['villes_finales']
+        for v in st.session_state.villes_trouvees:
+            if st.checkbox(v, value=True, key=f"check_{v}"): selection.append(v)
+        st.session_state.villes_finales = selection
+
+    st.session_state.villes_sup = st.text_area("Villes supplémentaires (à la main) :", value=st.session_state.get('villes_sup', ''))
+
+    c1, c2 = st.columns(2)
+    with c1: st.button("Retour", on_click=change_step, args=(-1,))
+    with c2:
+        if st.button("Dernière étape"):
+            if st.session_state.villes_finales: change_step(1)
+            else: st.error("Calculez et sélectionnez au moins une ville.")
+
+# 7. FIN ET ENVOI
+elif st.session_state.step == 7:
+    st.header("7. Finalisation")
+    st.session_state.info_libre = st.text_area("Notes libres / Questions :", value=st.session_state.get('info_libre', ''))
+    c1, c2 = st.columns(2)
+    with c1: st.button("Retour", on_click=change_step, args=(-1,))
+    with c2:
+        if st.button("TRANSMETTRE MON DOSSIER"):
+            f = st.session_state.get('file_vigilance')
+            content = base64.b64encode(f.read()).decode() if f else ""
+            payload = {
+                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe},
+                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
+                "tarifs": {"dim": st.session_state.get('montant_dim', '0'), "fer": st.session_state.get('montant_ferie', '0')},
+                "secteur": {"base": st.session_state.ville_base_full, "villes": st.session_state.villes_finales, "sup": st.session_state.villes_sup},
+                "attestation": content, "notes": st.session_state.info_libre
+            }
+            try:
+                r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
+                if r.status_code == 200:
+                    st.balloons()
+                    st.success("Dossier envoyé !")
+                else: st.error("Erreur d'envoi.")
+            except: st.error("Erreur connexion.")
