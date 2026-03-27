@@ -79,11 +79,12 @@ if st.session_state.step == 1:
         if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
         else: st.error("Champs obligatoires manquants.")
 
-# 2. CONTACTS
+# 2. CONTACTS ET STATUT
 elif st.session_state.step == 2:
     st.header("2. Coordonnées & Structure")
     st.session_state.societe = st.text_input("Nom de société (si applicable)", value=st.session_state.get('societe', ''))
     st.session_state.statut = st.selectbox("Statut de votre société *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
+    
     col1, col2 = st.columns(2)
     with col1:
         st.session_state.tel1 = st.text_input("Téléphone principal *", value=st.session_state.get('tel1', ''))
@@ -111,7 +112,7 @@ elif st.session_state.step == 3:
             if st.session_state.get('file_vigilance'): change_step(1)
             else: st.error("L'attestation est obligatoire.")
 
-# 4. ORGANISATION (Conditionnelle)
+# 4. ORGANISATION
 elif st.session_state.step == 4:
     st.header("4. Organisation")
     org = st.radio("Travaillez-vous seul ou à plusieurs ? *", ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"])
@@ -150,7 +151,7 @@ elif st.session_state.step == 5:
             if st.session_state.dispos: change_step(1)
             else: st.error("Disponibilités obligatoires.")
 
-# 6. SECTEUR (Correction bug affichage)
+# 6. SECTEUR
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
     v_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
@@ -190,17 +191,40 @@ elif st.session_state.step == 7:
         if st.button("TRANSMETTRE MON DOSSIER"):
             f = st.session_state.get('file_vigilance')
             content = base64.b64encode(f.read()).decode() if f else ""
+            
+            # PAYLOAD COMPLET AVEC STATUT SOCIÉTÉ
             payload = {
-                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe},
-                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
-                "tarifs": {"dim": st.session_state.get('montant_dim', '0'), "fer": st.session_state.get('montant_ferie', '0')},
-                "secteur": {"base": st.session_state.ville_base_full, "villes": st.session_state.villes_finales, "sup": st.session_state.villes_sup},
-                "attestation": content, "notes": st.session_state.info_libre
+                "identite": {
+                    "nom": st.session_state.nom, 
+                    "prenom": st.session_state.prenom, 
+                    "siret": st.session_state.siret, 
+                    "societe": st.session_state.societe,
+                    "statut": st.session_state.statut  # AJOUTÉ ICI
+                },
+                "contact": {
+                    "tel1": st.session_state.tel1, 
+                    "tel2": st.session_state.tel2, 
+                    "email1": st.session_state.email1, 
+                    "email2": st.session_state.email2
+                },
+                "tarifs": {
+                    "dimanche": {"active": st.session_state.get('maj_dim'), "montant": st.session_state.get('montant_dim', '0')},
+                    "feries": {"active": st.session_state.get('maj_ferie'), "montant": st.session_state.get('montant_ferie', '0'), "details": st.session_state.get('lesquels_ferie', '')}
+                },
+                "secteur": {
+                    "base": st.session_state.ville_base_full, 
+                    "villes": st.session_state.villes_finales, 
+                    "sup": st.session_state.villes_sup
+                },
+                "organisation": st.session_state.org,
+                "attestation": content, 
+                "notes": st.session_state.info_libre
             }
+            
             try:
                 r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
                 if r.status_code == 200:
                     st.balloons()
-                    st.success("Dossier envoyé !")
-                else: st.error("Erreur d'envoi.")
-            except: st.error("Erreur connexion.")
+                    st.success("Dossier envoyé avec succès ! Merci de votre collaboration.")
+                else: st.error(f"Erreur d'envoi ({r.status_code}).")
+            except: st.error("Erreur de connexion au serveur.")
