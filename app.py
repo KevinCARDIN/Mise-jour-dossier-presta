@@ -44,9 +44,20 @@ def set_bg_local(main_bg_img):
 
 set_bg_local("fond.png")
 
-# --- INITIALISATION ---
-if 'step' not in st.session_state: st.session_state.step = 1
-if 'villes_trouvees' not in st.session_state: st.session_state.villes_trouvees = []
+# --- INITIALISATION ROBUSTE DU SESSION_STATE ---
+# On pré-déclare TOUTES les clés pour éviter les "AttributeError" à la fin
+initial_keys = {
+    'step': 1, 'nom': '', 'prenom': '', 'siret': '', 'societe': '', 'statut': 'Auto/Micro-Entrepreneur (EI)',
+    'tel1': '', 'tel2': '', 'email1': '', 'email2': '', 'org_type': 'Seul, sans remplaçant même ponctuel',
+    'details_org': '', 'tels_remp': 'N/A', 'emails_remp': 'N/A', 'dispos': '', 'maj_dim': 'Non',
+    'montant_dim': '0', 'maj_ferie': 'Non', 'lesquels_ferie': '', 'montant_ferie': '0',
+    'ville_base': 'Aast', 'rayon': 20, 'villes_trouvees': [], 'villes_finales_list': [],
+    'villes_sup': '', 'info_libre': ''
+}
+
+for key, value in initial_keys.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 def change_step(direction):
     st.session_state.step += direction
@@ -75,7 +86,7 @@ if st.session_state.step == 1:
         if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
         else: st.error("Champs obligatoires manquants.")
 
-# 2. CONTACTS & STATUT
+# 2. CONTACTS
 elif st.session_state.step == 2:
     st.header("2. Coordonnées & Structure")
     st.text_input("Nom de société (si applicable)", key="societe")
@@ -95,14 +106,12 @@ elif st.session_state.step == 2:
             if st.session_state.tel1 and st.session_state.email1: change_step(1)
             else: st.error("Téléphone et Email obligatoires.")
 
-# 3. ATTESTATION (Persistance du fichier)
+# 3. ATTESTATION
 elif st.session_state.step == 3:
     st.header("3. Attestation de vigilance")
-    st.markdown("Allez sur **urssaf.fr** → Mon compte → Mes attestations → Attestation de vigilance.")
     file = st.file_uploader("Téléchargez le PDF *", type=["pdf"])
     if file:
         st.session_state['file_bytes'] = file.read()
-        st.session_state['file_name'] = file.name
     
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
@@ -134,7 +143,7 @@ elif st.session_state.step == 4:
 # 5. DISPOS & TARIFS
 elif st.session_state.step == 5:
     st.header("5. Disponibilités & Tarifs")
-    st.text_area("Quels sont vos jours et plages horaires de disponibilité ? *", key="dispos") # LE CHAMP DISPO
+    st.text_area("Quels sont vos jours et plages horaires ? *", key="dispos")
     
     col_a, col_b = st.columns(2)
     with col_a:
@@ -152,85 +161,56 @@ elif st.session_state.step == 5:
     with c2:
         if st.button("Suivant"):
             if st.session_state.dispos: change_step(1)
-            else: st.error("Les disponibilités sont obligatoires.")
+            else: st.error("Disponibilités obligatoires.")
 
 # 6. SECTEUR
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
     v_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()), key="ville_base")
-    rayon = st.slider("Rayon (km) *", 0, 200, 20, key="rayon")
+    st.slider("Rayon (km) *", 0, 200, 20, key="rayon")
 
     if st.button("Calculer les villes"):
-        v_sel = df_v[df_v['affichage'] == v_base].iloc[0]
+        v_sel = df_v[df_v['affichage'] == st.session_state.ville_base].iloc[0]
         def dist(r): return geodesic((v_sel['latitude'], v_sel['longitude']), (r['latitude'], r['longitude'])).km
         df_v['d'] = df_v.apply(dist, axis=1)
-        st.session_state.villes_trouvees = df_v[df_v['d'] <= rayon].sort_values('d')['affichage'].head(100).tolist()
+        st.session_state.villes_trouvees = df_v[df_v['d'] <= st.session_state.rayon].sort_values('d')['affichage'].head(100).tolist()
 
     if st.session_state.villes_trouvees:
-        st.write("Sélectionnez vos villes :")
-        villes_finales = []
+        v_list = []
         for v in st.session_state.villes_trouvees:
-            if st.checkbox(v, value=True, key=f"v_{v}"):
-                villes_finales.append(v)
-        st.session_state['villes_finales_list'] = villes_finales
+            if st.checkbox(v, value=True, key=f"v_{v}"): v_list.append(v)
+        st.session_state.villes_finales_list = v_list
 
-    st.text_area("Villes supplémentaires (à la main) :", key="villes_sup")
+    st.text_area("Villes supplémentaires :", key="villes_sup")
 
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
     with c2:
         if st.button("Dernière étape"):
-            if st.session_state.get('villes_finales_list'): change_step(1)
-            else: st.error("Calculez et sélectionnez au moins une ville.")
+            if st.session_state.villes_finales_list: change_step(1)
+            else: st.error("Sélectionnez au moins une ville.")
 
-# 7. ENVOI FINAL
+# 7. ENVOI
 elif st.session_state.step == 7:
     st.header("7. Finalisation")
-    st.text_area("Notes libres / Questions :", key="info_libre")
+    st.text_area("Notes libres :", key="info_libre")
     
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
     with c2:
         if st.button("TRANSMETTRE MON DOSSIER"):
-            with st.spinner('Envoi en cours...'):
-                # Encodage du fichier sauvegardé
-                content = base64.b64encode(st.session_state.file_bytes).decode() if 'file_bytes' in st.session_state else ""
-                
-                # PAYLOAD INTÉGRAL (Dispos et Statut inclus)
-                payload = {
-                    "identite": {
-                        "nom": st.session_state.nom, "prenom": st.session_state.prenom, 
-                        "siret": st.session_state.siret, "societe": st.session_state.societe,
-                        "statut": st.session_state.statut
-                    },
-                    "contact": {
-                        "tel1": st.session_state.tel1, "tel2": st.session_state.tel2, 
-                        "email1": st.session_state.email1, "email2": st.session_state.email2
-                    },
-                    "disponibilites": st.session_state.dispos, # BIEN PRÉSENT ICI
-                    "organisation": {
-                        "type": st.session_state.org_type,
-                        "details": st.session_state.get('details_org'),
-                        "tels_remp": st.session_state.get('tels_remp'),
-                        "emails_remp": st.session_state.get('emails_remp')
-                    },
-                    "tarifs": {
-                        "maj_dim": {"active": st.session_state.maj_dim, "montant": st.session_state.get('montant_dim', '0')},
-                        "maj_fer": {"active": st.session_state.maj_ferie, "jours": st.session_state.get('lesquels_ferie', ''), "montant": st.session_state.get('montant_ferie', '0')}
-                    },
-                    "secteur": {
-                        "base": st.session_state.ville_base, "rayon": st.session_state.rayon,
-                        "villes": st.session_state.get('villes_finales_list', []),
-                        "villes_sup": st.session_state.villes_sup
-                    },
-                    "attestation": content,
-                    "notes": st.session_state.info_libre
-                }
-                
-                try:
-                    r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
-                    if r.status_code == 200:
-                        st.balloons()
-                        st.success("Dossier complet envoyé !")
-                    else: st.error("Erreur d'envoi.")
-                except: st.error("Erreur de connexion.")
+            content = base64.b64encode(st.session_state.file_bytes).decode() if 'file_bytes' in st.session_state else ""
+            payload = {
+                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
+                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
+                "disponibilites": st.session_state.dispos,
+                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org, "tels_remp": st.session_state.tels_remp, "emails_remp": st.session_state.emails_remp},
+                "tarifs": {"dimanche": st.session_state.montant_dim, "feries": st.session_state.montant_ferie, "details_feries": st.session_state.lesquels_ferie},
+                "secteur": {"base": st.session_state.ville_base, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
+                "attestation": content, "notes": st.session_state.info_libre
+            }
+            try:
+                r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
+                if r.status_code == 200: st.balloons(); st.success("Dossier envoyé !")
+                else: st.error("Erreur d'envoi.")
+            except: st.error("Erreur connexion.")
