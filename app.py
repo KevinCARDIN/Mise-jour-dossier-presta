@@ -44,19 +44,19 @@ def set_bg_local(main_bg_img):
 
 set_bg_local("fond.png")
 
-# --- INITIALISATION DES VARIABLES (ANTI-VIDE) ---
-if 'step' not in st.session_state: st.session_state.step = 1
+# --- INITIALISATION ROBUSTE ---
+fields = {
+    'step': 1, 'nom': '', 'prenom': '', 'siret': '', 'societe': '', 'statut': 'Auto/Micro-Entrepreneur (EI)',
+    'tel1': '', 'tel2': '', 'email1': '', 'email2': '', 'org_type': 'Seul, sans remplaçant même ponctuel',
+    'details_org': '', 'tels_remp': 'N/A', 'emails_remp': 'N/A', 'dispos': '', 'maj_dim': 'Non',
+    'montant_dim': '0', 'maj_ferie': 'Non', 'lesquels_ferie': '', 'montant_ferie': '0',
+    'ville_base': 'Aast', 'rayon': 20, 'villes_trouvees': [], 'villes_finales_list': [],
+    'villes_sup': '', 'info_libre': ''
+}
 
-# Liste de tous les champs pour s'assurer qu'ils ne sont jamais 'empty'
-fields = [
-    'nom', 'prenom', 'siret', 'societe', 'statut', 'tel1', 'tel2', 'email1', 'email2',
-    'org_type', 'details_org', 'tels_remp', 'emails_remp', 'dispos', 'maj_dim', 
-    'montant_dim', 'maj_ferie', 'lesquels_ferie', 'montant_ferie', 'ville_base', 
-    'rayon', 'villes_trouvees', 'villes_finales_list', 'villes_sup', 'info_libre'
-]
-for field in fields:
-    if field not in st.session_state:
-        st.session_state[field] = "" if "list" not in field and "trouvees" not in field else []
+for key, val in fields.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
 
 def change_step(direction):
     st.session_state.step += direction
@@ -140,7 +140,7 @@ elif st.session_state.step == 4:
 # 5. DISPOS & TARIFS
 elif st.session_state.step == 5:
     st.header("5. Disponibilités & Tarifs")
-    st.session_state.dispos = st.text_area("Quels sont vos jours et plages horaires de disponibilité ? *", value=st.session_state.dispos)
+    st.session_state.dispos = st.text_area("Quels sont vos jours et plages horaires ? *", value=st.session_state.dispos)
     
     col_a, col_b = st.columns(2)
     with col_a:
@@ -164,7 +164,7 @@ elif st.session_state.step == 5:
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
     st.session_state.ville_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
-    st.session_state.rayon = st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon) if st.session_state.rayon else 20)
+    st.session_state.rayon = st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon))
 
     if st.button("Calculer les villes"):
         v_sel = df_v[df_v['affichage'] == st.session_state.ville_base].iloc[0]
@@ -174,10 +174,10 @@ elif st.session_state.step == 6:
 
     if st.session_state.villes_trouvees:
         st.write("Sélectionnez vos villes :")
-        v_final = []
+        v_list = []
         for v in st.session_state.villes_trouvees:
-            if st.checkbox(v, value=True, key=f"v_{v}"): v_final.append(v)
-        st.session_state.villes_finales_list = v_final
+            if st.checkbox(v, value=True, key=f"v_{v}"): v_list.append(v)
+        st.session_state.villes_finales_list = v_list
 
     st.session_state.villes_sup = st.text_area("Villes supplémentaires :", value=st.session_state.villes_sup)
 
@@ -188,7 +188,7 @@ elif st.session_state.step == 6:
             if st.session_state.villes_finales_list: change_step(1)
             else: st.error("Sélectionnez au moins une ville.")
 
-# 7. ENVOI
+# 7. ENVOI FINAL
 elif st.session_state.step == 7:
     st.header("7. Finalisation")
     st.session_state.info_libre = st.text_area("Notes libres :", value=st.session_state.info_libre)
@@ -199,43 +199,20 @@ elif st.session_state.step == 7:
         if st.button("TRANSMETTRE MON DOSSIER"):
             content = base64.b64encode(st.session_state.file_bytes).decode() if 'file_bytes' in st.session_state else ""
             
-            # --- PAYLOAD COMPLET (CORRIGÉ) ---
             payload = {
-                "identite": {
-                    "nom": st.session_state.nom, 
-                    "prenom": st.session_state.prenom, 
-                    "siret": st.session_state.siret, 
-                    "societe": st.session_state.societe, 
-                    "statut": st.session_state.statut
-                },
-                "contact": {
-                    "tel1": st.session_state.tel1, 
-                    "tel2": st.session_state.tel2, 
-                    "email1": st.session_state.email1, 
-                    "email2": st.session_state.email2
-                },
-                "disponibilites": st.session_state.dispos, # AJOUTÉ ICI
-                "organisation": {
-                    "type": st.session_state.org_type, 
-                    "details": st.session_state.details_org, 
-                    "tels_remp": st.session_state.tels_remp, 
-                    "emails_remp": st.session_state.emails_remp
-                },
+                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
+                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
+                "disponibilites": st.session_state.dispos,
+                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org, "tels_remp": st.session_state.tels_remp, "emails_remp": st.session_state.emails_remp},
                 "tarifs": {
-                    "dimanche": st.session_state.montant_dim if st.session_state.maj_dim == "Oui" else "0", 
-                    "feries": st.session_state.montant_ferie if st.session_state.maj_ferie == "Oui" else "0", 
-                    "details_feries": st.session_state.lesquels_ferie
+                    "maj_dimanche": {"active": st.session_state.maj_dim, "montant": st.session_state.montant_dim}, # AJOUTÉ ICI
+                    "maj_feries": {"active": st.session_state.maj_ferie, "jours": st.session_state.lesquels_ferie, "montant": st.session_state.montant_ferie} # AJOUTÉ ICI
                 },
-                "secteur": {
-                    "base": st.session_state.ville_base, 
-                    "villes": st.session_state.villes_finales_list, 
-                    "sup": st.session_state.villes_sup
-                },
-                "attestation": content, 
-                "notes": st.session_state.info_libre
+                "secteur": {"base": st.session_state.ville_base, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
+                "attestation": content, "notes": st.session_state.info_libre
             }
             try:
                 r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
-                if r.status_code == 200: st.balloons(); st.success("Dossier envoyé !")
+                if r.status_code == 200: st.balloons(); st.success("Dossier complet envoyé !")
                 else: st.error("Erreur d'envoi.")
             except: st.error("Erreur connexion.")
