@@ -14,28 +14,32 @@ def set_bg_local(main_bg_img):
         page_bg_img = f'''
         <style>
         .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bin_str}");
+            background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}");
             background-size: cover;
             background-attachment: fixed;
         }}
+        /* AMÉLIORATION VISIBILITÉ : Texte noir sur fond blanc dans les champs */
+        .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stNumberInput>div>div>input {{ 
+            background-color: white !important; 
+            color: black !important; 
+            font-size: 16px !important;
+            border-radius: 5px !important;
+        }}
+        /* Boutons Jaunes LetaHost Centrés */
         div.stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
             border: none !important;
             font-weight: bold !important;
-            padding: 10px 30px !important;
-            border-radius: 5px !important;
+            padding: 12px 30px !important;
+            border-radius: 8px !important;
             display: block;
             margin: 20px auto;
-            width: 250px !important;
+            width: 280px !important;
+            text-transform: uppercase;
         }}
         h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
-        .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div {{ 
-            background-color: rgba(255,255,255,0.1) !important; 
-            color: white !important; 
-            border: 1px solid rgba(255,255,255,0.2) !important;
-        }}
-        div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }}
+        div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; color: white !important; }}
         </style>
         '''
         st.markdown(page_bg_img, unsafe_allow_html=True)
@@ -44,9 +48,9 @@ def set_bg_local(main_bg_img):
 
 set_bg_local("fond.png")
 
-# --- INITIALISATION ROBUSTE ---
+# --- INITIALISATION ROBUSTE DU SESSION_STATE ---
 fields = {
-    'step': 1, 'nom': '', 'prenom': '', 'siret': '', 'societe': '', 'statut': 'Auto/Micro-Entrepreneur (EI)',
+    'step': 0, 'nom': '', 'prenom': '', 'siret': '', 'societe': '', 'statut': 'Auto/Micro-Entrepreneur (EI)',
     'tel1': '', 'tel2': '', 'email1': '', 'email2': '', 'org_type': 'Seul, sans remplaçant même ponctuel',
     'details_org': '', 'tels_remp': 'N/A', 'emails_remp': 'N/A', 'dispos': '', 'maj_dim': 'Non',
     'montant_dim': '0', 'maj_ferie': 'Non', 'lesquels_ferie': '', 'montant_ferie': '0',
@@ -73,19 +77,32 @@ def load_data():
 
 df_v = load_data()
 
-# --- ÉTAPES ---
+# AFFICHAGE LOGO
+try:
+    st.image("letahost_logo.png", width=220)
+except:
+    st.title("LETAHOST")
+
+# --- ÉTAPES DU QUESTIONNAIRE ---
+
+# ÉTAPE 0 : ACCUEIL (DEMANDÉ DANS LA VIDÉO)
+if st.session_state.step == 0:
+    st.header("Mise à jour Dossier Prestataire")
+    st.write("Bienvenue sur votre espace de mise à jour Letahost.")
+    st.write("Ce questionnaire rapide (7 étapes) nous permet de réactualiser vos informations et votre secteur d'intervention.")
+    st.button("Commencer le questionnaire", on_click=change_step, args=(1,))
 
 # 1. IDENTITÉ
-if st.session_state.step == 1:
+elif st.session_state.step == 1:
     st.header("1. Vos informations personnelles")
     st.session_state.nom = st.text_input("NOM *", value=st.session_state.nom)
     st.session_state.prenom = st.text_input("Prénom *", value=st.session_state.prenom)
     st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.siret)
     if st.button("Continuer"):
         if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
-        else: st.error("Champs obligatoires manquants.")
+        else: st.error("Veuillez remplir les champs obligatoires (*)")
 
-# 2. CONTACTS
+# 2. CONTACTS ET STATUT
 elif st.session_state.step == 2:
     st.header("2. Coordonnées & Structure")
     st.session_state.societe = st.text_input("Nom de société (si applicable)", value=st.session_state.societe)
@@ -103,11 +120,14 @@ elif st.session_state.step == 2:
     with c2:
         if st.button("Suivant"):
             if st.session_state.tel1 and st.session_state.email1: change_step(1)
-            else: st.error("Téléphone et Email obligatoires.")
+            else: st.error("Tél et Email obligatoires.")
 
 # 3. ATTESTATION
 elif st.session_state.step == 3:
     st.header("3. Attestation de vigilance")
+    st.markdown("""
+    Récupérez votre attestation sur **urssaf.fr** (Espace personnel -> Mes attestations).
+    """)
     file = st.file_uploader("Téléchargez le PDF *", type=["pdf"])
     if file:
         st.session_state['file_bytes'] = file.read()
@@ -119,7 +139,7 @@ elif st.session_state.step == 3:
             if 'file_bytes' in st.session_state: change_step(1)
             else: st.error("L'attestation est obligatoire.")
 
-# 4. ORGANISATION
+# 4. ORGANISATION (LOGIQUE CONDITIONNELLE)
 elif st.session_state.step == 4:
     st.header("4. Organisation")
     st.session_state.org_type = st.radio("Travaillez-vous seul ou à plusieurs ? *", ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"], index=0)
@@ -160,7 +180,7 @@ elif st.session_state.step == 5:
             if st.session_state.dispos: change_step(1)
             else: st.error("Disponibilités obligatoires.")
 
-# 6. SECTEUR
+# 6. SECTEUR (FIX CALCUL)
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
     st.session_state.ville_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
@@ -173,13 +193,13 @@ elif st.session_state.step == 6:
         st.session_state.villes_trouvees = df_v[df_v['d'] <= st.session_state.rayon].sort_values('d')['affichage'].head(100).tolist()
 
     if st.session_state.villes_trouvees:
-        st.write("Sélectionnez vos villes :")
+        st.write("Sélectionnez vos villes d'intervention :")
         v_list = []
         for v in st.session_state.villes_trouvees:
             if st.checkbox(v, value=True, key=f"v_{v}"): v_list.append(v)
         st.session_state.villes_finales_list = v_list
 
-    st.session_state.villes_sup = st.text_area("Villes supplémentaires :", value=st.session_state.villes_sup)
+    st.session_state.villes_sup = st.text_area("Précisez d'autres villes à la main :", value=st.session_state.villes_sup)
 
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
@@ -188,31 +208,54 @@ elif st.session_state.step == 6:
             if st.session_state.villes_finales_list: change_step(1)
             else: st.error("Sélectionnez au moins une ville.")
 
-# 7. ENVOI FINAL
+# 7. FINALISATION ET ENVOI WEBHOOK
 elif st.session_state.step == 7:
     st.header("7. Finalisation")
-    st.session_state.info_libre = st.text_area("Notes libres :", value=st.session_state.info_libre)
+    st.session_state.info_libre = st.text_area("Autres éléments à nous communiquer :", value=st.session_state.info_libre)
     
     c1, c2 = st.columns(2)
     with c1: st.button("Retour", on_click=change_step, args=(-1,))
     with c2:
         if st.button("TRANSMETTRE MON DOSSIER"):
-            content = base64.b64encode(st.session_state.file_bytes).decode() if 'file_bytes' in st.session_state else ""
-            
-            payload = {
-                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
-                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
-                "disponibilites": st.session_state.dispos,
-                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org, "tels_remp": st.session_state.tels_remp, "emails_remp": st.session_state.emails_remp},
-                "tarifs": {
-                    "maj_dimanche": {"active": st.session_state.maj_dim, "montant": st.session_state.montant_dim}, # AJOUTÉ ICI
-                    "maj_feries": {"active": st.session_state.maj_ferie, "jours": st.session_state.lesquels_ferie, "montant": st.session_state.montant_ferie} # AJOUTÉ ICI
-                },
-                "secteur": {"base": st.session_state.ville_base, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
-                "attestation": content, "notes": st.session_state.info_libre
-            }
-            try:
-                r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
-                if r.status_code == 200: st.balloons(); st.success("Dossier complet envoyé !")
-                else: st.error("Erreur d'envoi.")
-            except: st.error("Erreur connexion.")
+            with st.spinner('Envoi en cours...'):
+                content = base64.b64encode(st.session_state.file_bytes).decode() if 'file_bytes' in st.session_state else ""
+                
+                # PAYLOAD SYNCHRONISÉ POUR N8N
+                payload = {
+                    "identite": {
+                        "nom": st.session_state.nom, 
+                        "prenom": st.session_state.prenom, 
+                        "siret": st.session_state.siret, 
+                        "societe": st.session_state.societe, 
+                        "statut": st.session_state.statut
+                    },
+                    "contact": {
+                        "tel1": st.session_state.tel1, "tel2": st.session_state.tel2, 
+                        "email1": st.session_state.email1, "email2": st.session_state.email2
+                    },
+                    "disponibilites": st.session_state.dispos,
+                    "tarifs": {
+                        "maj_dimanche": {"active": st.session_state.maj_dim, "montant": st.session_state.montant_dim},
+                        "maj_feries": {"active": st.session_state.maj_ferie, "jours": st.session_state.lesquels_ferie, "montant": st.session_state.montant_ferie}
+                    },
+                    "organisation": {
+                        "type": st.session_state.org_type, "details": st.session_state.details_org,
+                        "tels_remp": st.session_state.tels_remp, "emails_remp": st.session_state.emails_remp
+                    },
+                    "secteur": {
+                        "base": st.session_state.ville_base, 
+                        "villes": st.session_state.villes_finales_list, 
+                        "sup": st.session_state.villes_sup
+                    },
+                    "attestation": content, 
+                    "notes": st.session_state.info_libre
+                }
+                
+                try:
+                    r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
+                    if r.status_code == 200:
+                        st.balloons()
+                        st.success("Dossier complet envoyé ! Merci de votre collaboration.")
+                    else: st.error(f"Erreur d'envoi ({r.status_code})")
+                except:
+                    st.error("Erreur de connexion au serveur.")
