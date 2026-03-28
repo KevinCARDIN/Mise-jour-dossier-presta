@@ -27,15 +27,22 @@ def set_bg_local(main_bg_img):
             border-radius: 5px !important;
         }}
         
-        /* 2. TITRES DE SECTION : Très grands et gras */
+        /* 2. TITRES DE SECTION : Très grands et imposants */
         h2 {{
-            font-size: 3.2rem !important; /* Augmenté pour être bien imposant */
+            font-size: 3.5rem !important; 
             font-weight: 800 !important;
-            margin-bottom: 40px !important;
+            margin-bottom: 20px !important;
             letter-spacing: -1px !important;
+            line-height: 1.1 !important;
         }}
         
-        /* 3. CENTRAGE DES BOUTONS JAUNES (VOTRE VERSION PRÉFÉRÉE) */
+        /* 3. CENTRAGE DES BOUTONS JAUNES */
+        /* On cible le conteneur du bouton pour le forcer au milieu */
+        div.stButton {{
+            display: flex;
+            justify-content: center;
+        }}
+
         div.stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
@@ -43,20 +50,15 @@ def set_bg_local(main_bg_img):
             font-weight: bold !important;
             padding: 12px 30px !important;
             border-radius: 8px !important;
-            display: block;
-            margin: 0 auto !important;
             width: 250px !important;
             text-transform: uppercase;
         }}
         
-        /* Centrage forcé pour les colonnes de boutons (Duo Retour/Suivant) */
-        div[data-testid="stHorizontalBlock"]:has(button) {{
-            justify-content: center !important;
-            gap: 20px !important;
-        }}
-        div[data-testid="stHorizontalBlock"]:has(button) > div {{
-            flex: none !important;
-            width: auto !important;
+        /* Alignement parfait pour les paires de boutons (Colonnes) */
+        [data-testid="column"] {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }}
 
         h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
@@ -95,20 +97,21 @@ def load_data():
     return df
 df_v = load_data()
 
-# --- LOGO CENTRÉ (Taille affinée) ---
-col_logo1, col_logo2, col_logo3 = st.columns([1, 0.8, 1]) # Colonne centrale plus étroite pour le logo
-with col_logo2:
+# --- LOGO CENTRÉ ---
+c_l1, c_l2, c_l3 = st.columns([1, 0.8, 1])
+with c_l2:
     try:
-        st.image("letahost_logo.png", width=140) # Taille réduite pour un rendu plus pro et centré
+        st.image("letahost_logo.png", width=140)
     except:
         st.title("LETAHOST")
 
 # --- ÉTAPES ---
 
-# ÉTAPE 0 : ACCUEIL
+# ÉTAPE 0 : ACCUEIL RESTAURÉE
 if st.session_state.step == 0:
     st.header("Mise à jour Dossier Prestataire")
-    st.write("Bienvenue sur votre espace partenaire.")
+    st.write("Bienvenue sur votre espace partenaire LetaHost.")
+    st.write("Ce questionnaire rapide nous permet de réactualiser vos informations et votre secteur d'intervention.")
     st.button("Démarrer", on_click=change_step, args=(1,))
 
 # ÉTAPE 1 : IDENTITÉ
@@ -195,7 +198,7 @@ elif st.session_state.step == 5:
 # ÉTAPE 6 : SECTEUR
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
-    st.session_state.ville_base = st.selectbox("Départ *", sorted(df_v['affichage'].unique()))
+    v_base = st.selectbox("Départ *", sorted(df_v['affichage'].unique()))
     st.session_state.rayon = st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon))
     if st.button("Calculer"):
         v_sel = df_v[df_v['affichage'] == st.session_state.ville_base].iloc[0]
@@ -229,7 +232,7 @@ elif st.session_state.step == 7:
                 "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
                 "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
                 "disponibilites": st.session_state.dispos,
-                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org, "tels": st.session_state.tels_remp, "emails": st.session_state.emails_remp},
+                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org},
                 "tarifs": {"maj_dim": st.session_state.maj_dim, "montant_dim": st.session_state.montant_dim, "maj_fer": st.session_state.maj_ferie, "montant_fer": st.session_state.montant_ferie, "feries": st.session_state.lesquels_ferie},
                 "secteur": {"base": st.session_state.ville_base, "rayon": st.session_state.rayon, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
                 "attestation": content, "notes": st.session_state.info_libre
