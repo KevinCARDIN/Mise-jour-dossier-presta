@@ -206,55 +206,80 @@ elif st.session_state.step == 5:
             if st.session_state.dispos: change_step(1)
             else: st.error("Disponibilités obligatoires.")
 
-# ÉTAPE 6 : SECTEUR
+# 6. SECTEUR
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
     v_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
-    st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon), key="rayon")
-    
+    st.session_state.ville_base_full = v_base
+    rayon = st.slider("Rayon (km) *", 0, 200, 20)
+    st.session_state.rayon = rayon
+
     if st.button("Calculer les villes"):
-        v_sel = df_v[df_v['affichage'] == st.session_state.ville_base].iloc[0]
+        v_sel = df_v[df_v['affichage'] == v_base].iloc[0]
         def dist(r): return geodesic((v_sel['latitude'], v_sel['longitude']), (r['latitude'], r['longitude'])).km
         df_v['d'] = df_v.apply(dist, axis=1)
-        st.session_state.villes_trouvees = df_v[df_v['d'] <= st.session_state.rayon].sort_values('d')['affichage'].head(100).tolist()
-    
+        st.session_state.villes_trouvees = df_v[df_v['d'] <= rayon].sort_values('d')['affichage'].head(100).tolist()
+
     if st.session_state.villes_trouvees:
         st.write("Sélectionnez vos villes :")
-        v_final = []
+        selection = []
         for v in st.session_state.villes_trouvees:
-            if st.checkbox(v, value=True, key=f"check_{v}"): v_final.append(v)
-        st.session_state.villes_finales_list = v_final
+            if st.checkbox(v, value=True, key=f"check_{v}"): selection.append(v)
+        st.session_state.villes_finales = selection
 
-    st.text_area("Villes supplémentaires :", value=st.session_state.villes_sup)
-    
-    col_b1, col_b2 = st.columns(2)
-    with col_b1: st.button("Retour", on_click=change_step, args=(-1,))
-    with col_b2:
+    st.session_state.villes_sup = st.text_area("Villes supplémentaires (à la main) :", value=st.session_state.get('villes_sup', ''))
+
+    c1, c2 = st.columns(2)
+    with c1: st.button("Retour", on_click=change_step, args=(-1,))
+    with c2:
         if st.button("Dernière étape"):
-            if st.session_state.villes_finales_list: change_step(1)
+            if st.session_state.villes_finales: change_step(1)
             else: st.error("Calculez et sélectionnez au moins une ville.")
 
-# ÉTAPE 7 : FINALISATION
+# 7. FIN ET ENVOI
 elif st.session_state.step == 7:
     st.header("7. Finalisation")
-    st.session_state.info_libre = st.text_area("Notes libres :", value=st.session_state.info_libre)
-    col_b1, col_b2 = st.columns(2)
-    with col_b1: st.button("Retour", on_click=change_step, args=(-1,))
-    with col_b2:
+    st.session_state.info_libre = st.text_area("Notes libres / Questions :", value=st.session_state.get('info_libre', ''))
+    c1, c2 = st.columns(2)
+    with c1: st.button("Retour", on_click=change_step, args=(-1,))
+    with c2:
         if st.button("TRANSMETTRE MON DOSSIER"):
-            f = st.session_state.get('file_bytes')
-            content = base64.b64encode(f).decode() if f else ""
+            f = st.session_state.get('file_vigilance')
+            content = base64.b64encode(f.read()).decode() if f else ""
+            
+            # PAYLOAD COMPLET AVEC STATUT SOCIÉTÉ
             payload = {
-                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
-                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
-                "disponibilites": st.session_state.dispos,
-                " organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org},
-                "tarifs": {"dimanche": st.session_state.montant_dim, "feries": st.session_state.montant_ferie, "details_feries": st.session_state.lesquels_ferie},
-                "secteur": {"base": st.session_state.ville_base, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
-                "attestation": content, "notes": st.session_state.info_libre
+                "identite": {
+                    "nom": st.session_state.nom, 
+                    "prenom": st.session_state.prenom, 
+                    "siret": st.session_state.siret, 
+                    "societe": st.session_state.societe,
+                    "statut": st.session_state.statut  # AJOUTÉ ICI
+                },
+                "contact": {
+                    "tel1": st.session_state.tel1, 
+                    "tel2": st.session_state.tel2, 
+                    "email1": st.session_state.email1, 
+                    "email2": st.session_state.email2
+                },
+                "tarifs": {
+                    "dimanche": {"active": st.session_state.get('maj_dim'), "montant": st.session_state.get('montant_dim', '0')},
+                    "feries": {"active": st.session_state.get('maj_ferie'), "montant": st.session_state.get('montant_ferie', '0'), "details": st.session_state.get('lesquels_ferie', '')}
+                },
+                "secteur": {
+                    "base": st.session_state.ville_base_full, 
+                    "villes": st.session_state.villes_finales, 
+                    "sup": st.session_state.villes_sup
+                },
+                "organisation": st.session_state.org,
+                "attestation": content, 
+                "notes": st.session_state.info_libre
             }
+            
             try:
                 r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
-                if r.status_code == 200: st.balloons(); st.success("Dossier envoyé !")
-                else: st.error("Erreur d'envoi.")
-            except: st.error("Erreur connexion.")
+                if r.status_code == 200:
+                    st.balloons()
+                    st.success("Dossier envoyé avec succès ! Merci de votre collaboration.")
+                else: st.error(f"Erreur d'envoi ({r.status_code}).")
+            except: st.error("Erreur de connexion au serveur.")
