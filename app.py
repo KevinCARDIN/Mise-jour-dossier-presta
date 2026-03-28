@@ -19,7 +19,7 @@ def set_bg_local(main_bg_img):
             background-attachment: fixed;
         }}
         
-        /* 1. TEXTE DES INPUTS : Noir sur blanc */
+        /* 1. TEXTE DES INPUTS : Noir sur blanc pour la lisibilité */
         .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stNumberInput>div>div>input {{ 
             background-color: white !important; 
             color: black !important; 
@@ -31,19 +31,20 @@ def set_bg_local(main_bg_img):
         h2 {{
             font-size: 3.5rem !important; 
             font-weight: 800 !important;
-            margin-bottom: 20px !important;
+            margin-bottom: 25px !important;
             letter-spacing: -1px !important;
             line-height: 1.1 !important;
         }}
         
-        /* 3. CENTRAGE DES BOUTONS JAUNES */
-        /* On cible le conteneur du bouton pour le forcer au milieu */
-        div.stButton {{
-            display: flex;
-            justify-content: center;
+        /* 3. LE FIX DU CENTRAGE DES BOUTONS */
+        /* On force le conteneur du bouton à être une boîte flexible centrée */
+        .stButton {{
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
         }}
 
-        div.stButton > button {{
+        .stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
             border: none !important;
@@ -54,14 +55,14 @@ def set_bg_local(main_bg_img):
             text-transform: uppercase;
         }}
         
-        /* Alignement parfait pour les paires de boutons (Colonnes) */
-        [data-testid="column"] {{
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        /* Centrage pour les paires de boutons dans les colonnes */
+        [data-testid="column"] .stButton {{
+            justify-content: center !important;
         }}
 
         h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
+        
+        /* Centrage des options radio */
         div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; color: white !important; }}
         </style>
         '''
@@ -98,8 +99,8 @@ def load_data():
 df_v = load_data()
 
 # --- LOGO CENTRÉ ---
-c_l1, c_l2, c_l3 = st.columns([1, 0.8, 1])
-with c_l2:
+c_logo1, c_logo2, c_logo3 = st.columns([1, 0.8, 1])
+with c_logo2:
     try:
         st.image("letahost_logo.png", width=140)
     except:
@@ -107,11 +108,11 @@ with c_l2:
 
 # --- ÉTAPES ---
 
-# ÉTAPE 0 : ACCUEIL RESTAURÉE
+# ÉTAPE 0 : ACCUEIL (TEXTES RESTAURÉS)
 if st.session_state.step == 0:
     st.header("Mise à jour Dossier Prestataire")
     st.write("Bienvenue sur votre espace partenaire LetaHost.")
-    st.write("Ce questionnaire rapide nous permet de réactualiser vos informations et votre secteur d'intervention.")
+    st.write("Ce questionnaire rapide (7 étapes) nous permet de réactualiser vos informations et votre secteur d'intervention.")
     st.button("Démarrer", on_click=change_step, args=(1,))
 
 # ÉTAPE 1 : IDENTITÉ
@@ -161,7 +162,7 @@ elif st.session_state.step == 4:
     st.header("4. Organisation")
     st.session_state.org_type = st.radio("Structure *", ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"], index=0)
     if "collaborateurs" in st.session_state.org_type or "remplaçant" in st.session_state.org_type:
-        st.session_state.details_org = st.text_input("Détails (noms) :", value=st.session_state.details_org)
+        st.session_state.details_org = st.text_input("Nom(s) du/des collaborateur(s) :", value=st.session_state.details_org)
     elif st.session_state.org_type == "En équipe":
         st.session_state.details_org = st.number_input("Nombre de personnes :", min_value=1, value=int(st.session_state.details_org) if st.session_state.details_org else 1)
     
@@ -183,7 +184,7 @@ elif st.session_state.step == 5:
         if st.session_state.maj_dim == "Oui":
             st.session_state.montant_dim = st.text_input("Montant Dim :", value=st.session_state.montant_dim)
     with cb:
-        st.session_state.maj_ferie = st.radio("Majoration Fériés ?", ["Non", "Oui"], index=0)
+        st.session_state.maj_ferie = st.radio("Majoration Jours Fériés ?", ["Non", "Oui"], index=0)
         if st.session_state.maj_ferie == "Oui":
             st.session_state.lesquels_ferie = st.text_input("Quels jours ?", value=st.session_state.lesquels_ferie)
             st.session_state.montant_ferie = st.text_input("Montant Fériés :", value=st.session_state.montant_ferie)
@@ -233,7 +234,7 @@ elif st.session_state.step == 7:
                 "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
                 "disponibilites": st.session_state.dispos,
                 "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org},
-                "tarifs": {"maj_dim": st.session_state.maj_dim, "montant_dim": st.session_state.montant_dim, "maj_fer": st.session_state.maj_ferie, "montant_fer": st.session_state.montant_ferie, "feries": st.session_state.lesquels_ferie},
+                "tarifs": {"dimanche": st.session_state.montant_dim, "feries": st.session_state.montant_ferie, "details_feries": st.session_state.lesquels_ferie},
                 "secteur": {"base": st.session_state.ville_base, "rayon": st.session_state.rayon, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
                 "attestation": content, "notes": st.session_state.info_libre
             }
