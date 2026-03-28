@@ -38,14 +38,9 @@ def set_bg_local(main_bg_img):
             text-align: center !important;
         }}
         
-        /* 3. CENTRAGE ABSOLU DES BOUTONS JAUNES */
-        /* On force le conteneur Streamlit à centrer son contenu */
-        div.stButton {{
-            text-align: center;
-            display: flex;
-            justify-content: center;
-        }}
-
+        /* 2. CENTRAGE DE TOUS LES BOUTONS (DORÉS) */
+        
+        /* Style général de base */
         div.stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
@@ -53,8 +48,28 @@ def set_bg_local(main_bg_img):
             font-weight: bold !important;
             padding: 12px 30px !important;
             border-radius: 8px !important;
-            width: 250px !important; /* Taille fixe pour l'alignement */
+            display: block;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 250px !important; /* Largeur fixe pour l'uniformité */
+            margin: 0 auto !important; /* Centrage horizontal par défaut */
+        }}
+        
+        /* Centrage spécifique pour les blocs à 1 bouton */
+        [data-testid="stVerticalBlock"] > div:has(div.stButton) {{
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }}
+        
+        /* Centrage spécifique pour les paires de boutons (Retour/Suivant) */
+        /* On force les colonnes à se regrouper au centre */
+        div[data-testid="stHorizontalBlock"] {{
+            display: flex !important;
+            justify-content: center !important;
+            gap: 30px !important; /* Espace entre les deux boutons */
+            width: 100% !important;
+            margin-top: 20px !important;
         }}
 
         /* Centrage de tous les textes */
