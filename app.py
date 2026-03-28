@@ -7,6 +7,7 @@ import base64
 # --- CONFIGURATION VISUELLE ---
 st.set_page_config(page_title="LetaHost - Partenaires", layout="centered")
 
+# Fonction pour encoder ton image locale en fond d'écran
 def set_bg_local(main_bg_img):
     try:
         with open(main_bg_img, "rb") as f:
@@ -18,14 +19,18 @@ def set_bg_local(main_bg_img):
             background-size: cover;
             background-attachment: fixed;
         }}
-        /* VISIBILITÉ : Texte noir sur fond blanc dans les champs */
+        
+        /* 1. VISIBILITÉ TEXTE : Noir sur fond blanc dans les champs */
         .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stNumberInput>div>div>input {{ 
             background-color: white !important; 
             color: black !important; 
             font-size: 16px !important;
             border-radius: 5px !important;
         }}
-        /* BOUTONS JAUNES CENTRÉS : Forçage du centrage */
+        
+        /* 2. CENTRAGE DE TOUS LES BOUTONS (DORÉS) */
+        
+        /* Style général de base */
         div.stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
@@ -34,21 +39,42 @@ def set_bg_local(main_bg_img):
             padding: 12px 30px !important;
             border-radius: 8px !important;
             display: block;
-            margin: 0 auto !important; /* Centrage horizontal */
-            width: 250px !important;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 250px !important; /* Largeur fixe pour l'uniformité */
+            margin: 0 auto !important; /* Centrage horizontal par défaut */
         }}
-        /* Centrage global des textes */
-        h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
         
-        /* Centrage des boutons radio */
-        div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; color: white !important; }}
-        
-        /* Ajustement pour les colonnes de boutons (Retour/Suivant) */
-        [data-testid="column"] {{
+        /* Centrage spécifique pour les blocs à 1 bouton */
+        [data-testid="stVerticalBlock"] > div:has(div.stButton) {{
             display: flex;
             justify-content: center;
+            width: 100%;
         }}
+        
+        /* Centrage spécifique pour les paires de boutons (Retour/Suivant) */
+        /* On force les colonnes à se regrouper au centre */
+        div[data-testid="stHorizontalBlock"] {{
+            display: flex !important;
+            justify-content: center !important;
+            gap: 30px !important; /* Espace entre les deux boutons */
+            width: 100% !important;
+            margin-top: 20px !important;
+        }}
+        
+        /* On empêche les colonnes de prendre toute la largeur */
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+            width: auto !important;
+            flex: none !important;
+        }}
+        
+        /* 3. CENTRAGE DES TEXTES */
+        h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; font-size: 1.1rem !important; }}
+        
+        /* Centrage et nettoyage des boutons Radio */
+        div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; color: white !important; }}
+        div.row-widget.stRadio > label {{ display: none; }} /* On cache le label principal s'il y en a un */
+
         </style>
         '''
         st.markdown(page_bg_img, unsafe_allow_html=True)
@@ -57,7 +83,7 @@ def set_bg_local(main_bg_img):
 
 set_bg_local("fond.png")
 
-# --- INITIALISATION ---
+# --- INITIALISATION ROBUSTE ---
 fields = {
     'step': 0, 'nom': '', 'prenom': '', 'siret': '', 'societe': '', 'statut': 'Auto/Micro-Entrepreneur (EI)',
     'tel1': '', 'tel2': '', 'email1': '', 'email2': '', 'org_type': 'Seul, sans remplaçant même ponctuel',
@@ -75,21 +101,18 @@ def change_step(direction):
 @st.cache_data
 def load_data():
     df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
-    df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-    df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-    df = df.dropna(subset=['latitude', 'longitude'])
     df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip().zfill(5))
     df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
     return df
 df_v = load_data()
 
-# --- AFFICHAGE DU LOGO CENTRÉ ---
-col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1])
+# --- AFFICHAGE DU LOGO LETAHOST CENTRÉ ---
+col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1]) # Colonne centrale large
 with col_logo_2:
     try:
-        st.image("letahost_logo.png", use_container_width=True)
+        st.image("letahost_logo.png", use_container_width=True) # Nom de ton nouveau logo
     except:
-        st.title("LETAHOST")
+        st.title("LETAHOST") # Texte si pas de logo
 
 # --- ÉTAPES ---
 
@@ -97,7 +120,7 @@ with col_logo_2:
 if st.session_state.step == 0:
     st.header("Mise à jour Dossier Prestataire")
     st.write("Bienvenue sur votre espace de mise à jour Letahost.")
-    st.write("Ce questionnaire rapide (7 étapes) nous permet de réactualiser vos informations.")
+    st.write("Ce questionnaire rapide (7 étapes) nous permet de réactualiser vos informations d'activité et vos secteurs d'intervention.")
     st.button("Commencer le questionnaire", on_click=change_step, args=(1,))
 
 # ÉTAPE 1 : IDENTITÉ
@@ -108,7 +131,7 @@ elif st.session_state.step == 1:
     st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.siret)
     if st.button("Continuer"):
         if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
-        else: st.error("Champs obligatoires (*)")
+        else: st.error("Champs obligatoires manquants.")
 
 # ÉTAPE 2 : CONTACTS & STATUT
 elif st.session_state.step == 2:
@@ -123,6 +146,7 @@ elif st.session_state.step == 2:
         st.session_state.email1 = st.text_input("Email principal *", value=st.session_state.email1)
         st.session_state.email2 = st.text_input("Email secondaire", value=st.session_state.email2)
     
+    # Boutons centrés ensemble
     col_b1, col_b2 = st.columns(2)
     with col_b1: st.button("Retour", on_click=change_step, args=(-1,))
     with col_b2:
@@ -163,7 +187,7 @@ elif st.session_state.step == 4:
 # ÉTAPE 5 : DISPOS & TARIFS
 elif st.session_state.step == 5:
     st.header("5. Disponibilités & Tarifs")
-    st.session_state.dispos = st.text_area("Quels sont vos jours et plages horaires de disponibilité ? *", value=st.session_state.dispos)
+    st.session_state.dispos = st.text_area("Vos jours et plages horaires ?", value=st.session_state.dispos)
     col_a, col_b = st.columns(2)
     with col_a:
         st.session_state.maj_dim = st.radio("Majoration Dimanche ?", ["Non", "Oui"], index=0)
@@ -185,41 +209,47 @@ elif st.session_state.step == 5:
 # ÉTAPE 6 : SECTEUR
 elif st.session_state.step == 6:
     st.header("6. Secteur d'intervention")
-    st.session_state.ville_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
-    st.session_state.rayon = st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon))
+    v_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
+    st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon), key="rayon")
+    
     if st.button("Calculer les villes"):
         v_sel = df_v[df_v['affichage'] == st.session_state.ville_base].iloc[0]
         def dist(r): return geodesic((v_sel['latitude'], v_sel['longitude']), (r['latitude'], r['longitude'])).km
         df_v['d'] = df_v.apply(dist, axis=1)
         st.session_state.villes_trouvees = df_v[df_v['d'] <= st.session_state.rayon].sort_values('d')['affichage'].head(100).tolist()
+    
     if st.session_state.villes_trouvees:
-        v_l = []
+        st.write("Sélectionnez vos villes :")
+        v_final = []
         for v in st.session_state.villes_trouvees:
-            if st.checkbox(v, value=True, key=f"v_{v}"): v_l.append(v)
-        st.session_state.villes_finales_list = v_l
-    st.session_state.villes_sup = st.text_area("Villes supplémentaires :", value=st.session_state.villes_sup)
+            if st.checkbox(v, value=True, key=f"check_{v}"): v_final.append(v)
+        st.session_state.villes_finales_list = v_final
+
+    st.text_area("Villes supplémentaires :", value=st.session_state.villes_sup)
+    
     col_b1, col_b2 = st.columns(2)
     with col_b1: st.button("Retour", on_click=change_step, args=(-1,))
     with col_b2:
         if st.button("Dernière étape"):
             if st.session_state.villes_finales_list: change_step(1)
-            else: st.error("Sélectionnez au moins une ville.")
+            else: st.error("Calculez et sélectionnez au moins une ville.")
 
 # ÉTAPE 7 : FINALISATION
 elif st.session_state.step == 7:
     st.header("7. Finalisation")
-    st.session_state.info_libre = st.text_area("Autres éléments :", value=st.session_state.info_libre)
+    st.session_state.info_libre = st.text_area("Notes libres :", value=st.session_state.info_libre)
     col_b1, col_b2 = st.columns(2)
     with col_b1: st.button("Retour", on_click=change_step, args=(-1,))
     with col_b2:
         if st.button("TRANSMETTRE MON DOSSIER"):
-            content = base64.b64encode(st.session_state.file_bytes).decode() if 'file_bytes' in st.session_state else ""
+            f = st.session_state.get('file_bytes')
+            content = base64.b64encode(f).decode() if f else ""
             payload = {
                 "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
                 "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
                 "disponibilites": st.session_state.dispos,
-                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org},
-                "tarifs": {"maj_dim": st.session_state.maj_dim, "montant_dim": st.session_state.montant_dim, "maj_fer": st.session_state.maj_ferie, "montant_fer": st.session_state.montant_ferie},
+                " organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org},
+                "tarifs": {"dimanche": st.session_state.montant_dim, "feries": st.session_state.montant_ferie, "details_feries": st.session_state.lesquels_ferie},
                 "secteur": {"base": st.session_state.ville_base, "villes": st.session_state.villes_finales_list, "sup": st.session_state.villes_sup},
                 "attestation": content, "notes": st.session_state.info_libre
             }
