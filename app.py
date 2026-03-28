@@ -121,7 +121,7 @@ df_v = load_data()
 
 # --- LOGO CENTRÉ ---
 # On utilise des ratios identiques (1, 1, 1) pour un équilibre parfait
-col_left, col_mid, col_right = st.columns([1, 2, 1])
+col_left, col_mid, col_right = st.columns([0.8, 2, 0.8])
 
 with col_mid:
     try:
