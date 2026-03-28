@@ -19,7 +19,7 @@ def set_bg_local(main_bg_img):
             background-attachment: fixed;
         }}
         
-        /* 1. TEXTE DES INPUTS : Noir sur blanc pour la lisibilité */
+        /* 1. TEXTE DES INPUTS : Noir sur blanc */
         .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stNumberInput>div>div>input {{ 
             background-color: white !important; 
             color: black !important; 
@@ -34,14 +34,17 @@ def set_bg_local(main_bg_img):
             margin-bottom: 25px !important;
             letter-spacing: -1px !important;
             line-height: 1.1 !important;
+            color: white !important;
+            text-align: center !important;
         }}
         
-        /* 3. LE FIX DU CENTRAGE DES BOUTONS */
-        /* On force le conteneur du bouton à être une boîte flexible centrée */
+        /* 3. FIX RADICAL DU CENTRAGE DES BOUTONS */
+        /* On force le bloc qui contient le bouton à occuper toute la largeur et à centrer son contenu */
         .stButton {{
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
+            margin-top: 10px !important;
         }}
 
         .stButton > button {{
@@ -55,12 +58,12 @@ def set_bg_local(main_bg_img):
             text-transform: uppercase;
         }}
         
-        /* Centrage pour les paires de boutons dans les colonnes */
+        /* Pour les colonnes (Retour / Suivant), on s'assure que chaque colonne centre son bouton */
         [data-testid="column"] .stButton {{
             justify-content: center !important;
         }}
 
-        h1, h2, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
+        h1, h3, p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
         
         /* Centrage des options radio */
         div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; color: white !important; }}
@@ -108,7 +111,7 @@ with c_logo2:
 
 # --- ÉTAPES ---
 
-# ÉTAPE 0 : ACCUEIL (TEXTES RESTAURÉS)
+# ÉTAPE 0 : ACCUEIL
 if st.session_state.step == 0:
     st.header("Mise à jour Dossier Prestataire")
     st.write("Bienvenue sur votre espace partenaire LetaHost.")
@@ -125,10 +128,10 @@ elif st.session_state.step == 1:
         if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
         else: st.error("Champs obligatoires manquants.")
 
-# ÉTAPE 2 : CONTACTS & STATUT
+# ÉTAPE 2 : CONTACTS
 elif st.session_state.step == 2:
     st.header("2. Coordonnées & Structure")
-    st.session_state.societe = st.text_input("Société", value=st.session_state.societe)
+    st.session_state.societe = st.text_input("Nom de société (si applicable)", value=st.session_state.societe)
     st.session_state.statut = st.selectbox("Statut *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"], index=0)
     c1, c2 = st.columns(2)
     with c1:
