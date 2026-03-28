@@ -120,12 +120,16 @@ def load_data():
 df_v = load_data()
 
 # --- LOGO CENTRÉ ---
-c1, c2, c3 = st.columns([1, 0.8, 1])
-with c2:
+# On utilise des ratios identiques (1, 1, 1) pour un équilibre parfait
+col_left, col_mid, col_right = st.columns([1, 1, 1])
+
+with col_mid:
     try:
+        # use_container_width=True force l'image à prendre toute la largeur de la colonne centrale
         st.image("letahost_logo.png", use_container_width=True)
     except:
-        st.title("LETAHOST")
+        # Si l'image bug, on force le centrage du titre en HTML pour plus de précision
+        st.markdown("<h1 style='text-align: center; color: white;'>LETAHOST</h1>", unsafe_allow_html=True)
 
 # --- ÉTAPES ---
 
