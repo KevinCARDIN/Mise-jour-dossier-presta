@@ -4,294 +4,171 @@ from geopy.distance import geodesic
 import requests
 import base64
 
-# --- CONFIGURATION VISUELLE ---
+# --- CONFIGURATION & PERFORMANCE ---
 st.set_page_config(page_title="LetaHost - Partenaires", layout="centered")
 
-def set_bg_local(main_bg_img):
+# --- DESIGN & CENTRAGE PHYSIQUE ---
+def set_design():
     try:
-        with open(main_bg_img, "rb") as f:
+        with open("fond.png", "rb") as f:
             bin_str = base64.b64encode(f.read()).decode()
-        page_bg_img = f'''
+        st.markdown(f'''
         <style>
-        .stApp {{
-            background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}");
-            background-size: cover;
-            background-attachment: fixed;
-        }}
-        
-        /* 1. TEXTE DES INPUTS : Noir sur blanc */
+        .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}"); background-size: cover; background-attachment: fixed; }}
         .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stNumberInput>div>div>input {{ 
-            background-color: white !important; 
-            color: black !important; 
-            font-size: 16px !important;
-            border-radius: 5px !important;
+            background-color: white !important; color: black !important; font-size: 16px !important; border-radius: 5px !important;
         }}
-        
-        /* 2. TITRES DE SECTION : Très grands et centrés */
-        h2 {{
-            font-size: 3.5rem !important; 
-            font-weight: 800 !important;
-            margin-bottom: 25px !important;
-            letter-spacing: -1px !important;
-            line-height: 1.1 !important;
-            color: white !important;
-            text-align: center !important;
-        }}
-        
-        /* 2. CENTRAGE DE TOUS LES BOUTONS (DORÉS) */
-        
-        /* Style général de base */
-        div.stButton > button {{
-            background-color: #f1c40f !important;
-            color: #000000 !important;
-            border: none !important;
-            font-weight: bold !important;
-            padding: 12px 30px !important;
-            border-radius: 8px !important;
-            display: block;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            width: 250px !important; /* Largeur fixe pour l'uniformité */
-            margin: 0 auto !important; /* Centrage horizontal par défaut */
-        }}
-        
-        /* Centrage spécifique pour les blocs à 1 bouton */
-        [data-testid="stVerticalBlock"] > div:has(div.stButton) {{
-            display: flex;
-            justify-content: center;
-            width: 100%;
-        }}
-        
-        /* Centrage spécifique pour les paires de boutons (Retour/Suivant) */
-        /* On force les colonnes à se regrouper au centre */
-        div[data-testid="stHorizontalBlock"] {{
-            display: flex !important;
-            justify-content: center !important;
-            gap: 30px !important; /* Espace entre les deux boutons */
-            width: 100% !important;
-            margin-top: 20px !important;
-        }}
-
-        /* Centrage de tous les textes */
-        h1, h3, p, label, .stMarkdown, div[data-testid="stMarkdownContainer"] p {{ 
-            color: white !important; 
-            text-align: center !important; 
-        }}
-        
-        /* Centrage des options radio */
-        div.row-widget.stRadio > div {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; color: white !important; }}
+        h2 {{ font-size: 3rem !important; font-weight: 800 !important; color: white !important; text-align: center !important; line-height: 1.1 !important; margin-top: 10px !important; }}
+        div.stButton {{ display: flex !important; justify-content: center !important; width: 100% !important; margin-top: 20px !important; }}
+        div.stButton > button {{ background-color: #f1c40f !important; color: black !important; font-weight: bold !important; width: 250px !important; border-radius: 8px !important; text-transform: uppercase !important; border: none !important; }}
+        p, label, .stMarkdown {{ color: white !important; text-align: center !important; }}
+        [data-testid="column"] {{ display: flex !important; justify-content: center !important; align-items: center !important; }}
         </style>
-        '''
-        st.markdown(page_bg_img, unsafe_allow_html=True)
-    except:
-        st.warning("⚠️ Image de fond non trouvée.")
+        ''', unsafe_allow_html=True)
+    except: pass
 
-set_bg_local("fond.png")
+def render_header(title):
+    try:
+        with open("letahost_logo.png", "rb") as f:
+            logo_encoded = base64.b64encode(f.read()).decode()
+        st.markdown(f'''
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 20px;">
+                <img src="data:image/png;base64,{logo_encoded}" width="130">
+                <h2>{title}</h2>
+            </div>
+        ''', unsafe_allow_html=True)
+    except: st.header(title)
 
-# --- INITIALISATION ---
-if 'step' not in st.session_state:
-    st.session_state.step = 0
+set_design()
 
-fields = {
-    'nom': '', 'prenom': '', 'siret': '', 'societe': '', 'statut': 'Auto/Micro-Entrepreneur (EI)',
-    'tel1': '', 'tel2': '', 'email1': '', 'email2': '', 'org_type': 'Seul, sans remplaçant même ponctuel',
-    'details_org': '', 'tels_remp': 'N/A', 'emails_remp': 'N/A', 'dispos': '', 'maj_dim': 'Non',
-    'montant_dim': '0', 'maj_ferie': 'Non', 'lesquels_ferie': '', 'montant_ferie': '0',
-    'ville_base': 'Aast', 'rayon': 20, 'villes_trouvees': [], 'villes_finales_list': [],
-    'villes_sup': '', 'info_libre': '', 'submitted': False
-}
-for key, val in fields.items():
-    if key not in st.session_state: st.session_state[key] = val
-
-def change_step(direction):
-    st.session_state.step += direction
-
+# --- CHARGEMENT & NETTOYAGE DONNÉES (Fix AttributeError) ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
-    # Conversion forcée pour éviter l'erreur de calcul
-    df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-    df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-    df = df.dropna(subset=['latitude', 'longitude'])
-    df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip().zfill(5))
-    df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
-    return df
+    try:
+        df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
+        df = df.dropna(subset=['latitude', 'longitude', 'code_postal'])
+        # Conversion forcée en string puis nettoyage
+        df['cp_clean'] = df['code_postal'].astype(str).apply(lambda x: x.split('.')[0].strip().zfill(5))
+        df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
+        df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
+        df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
+        return df.dropna()
+    except: return pd.DataFrame(columns=['affichage', 'latitude', 'longitude'])
 
 df_v = load_data()
 
-# --- LOGO CENTRÉ ---
-# On utilise des ratios identiques (1, 1, 1) pour un équilibre parfait
-col_left, col_mid, col_right = st.columns([0.8, 2, 0.8])
+# --- LOGIQUE DE NAVIGATION (Fix Double-Clic) ---
+if 'step' not in st.session_state: st.session_state.step = 0
 
-with col_mid:
-    try:
-        # use_container_width=True force l'image à prendre toute la largeur de la colonne centrale
-        st.image("letahost_logo.png", use_container_width=True)
-    except:
-        # Si l'image bug, on force le centrage du titre en HTML pour plus de précision
-        st.markdown("<h1 style='text-align: center; color: white;'>LETAHOST</h1>", unsafe_allow_html=True)
+def go_to(step_index): st.session_state.step = step_index
 
 # --- ÉTAPES ---
 
-# ÉTAPE FINALE : REMERCIEMENT
-if st.session_state.submitted:
-    st.header("Merci !")
-    st.write("Votre dossier a été transmis avec succès à nos équipes.")
-    st.write("Nous reviendrons vers vous très prochainement pour la suite de notre collaboration.")
-    if st.button("RETOUR À L'ACCUEIL"):
-        st.session_state.submitted = False
-        st.session_state.step = 0
-        st.rerun()
-
-# ÉTAPE 0 : ACCUEIL
-elif st.session_state.step == 0:
-    st.header("Mise à jour Dossier Prestataire")
+# 0. ACCUEIL
+if st.session_state.step == 0:
+    render_header("Mise à jour Dossier")
     st.write("Bienvenue sur votre espace partenaire LetaHost.")
-    st.write("Ce questionnaire rapide (7 étapes) nous permet de réactualiser vos informations et votre secteur d'intervention.")
-    st.button("DÉMARRER", on_click=change_step, args=(1,))
+    st.write("Ce questionnaire rapide nous permet de réactualiser vos informations.")
+    st.button("DÉMARRER", on_click=go_to, args=(1,))
 
-# 1. IDENTITÉ
+# 1. IDENTITÉ (SIRET déplacé selon feedback)
 elif st.session_state.step == 1:
-    st.header("1. Vos informations personnelles")
-    st.session_state.nom = st.text_input("NOM *", value=st.session_state.nom)
-    st.session_state.prenom = st.text_input("Prénom *", value=st.session_state.prenom)
-    st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.siret)
-    if st.button("CONTINUER"):
-        if st.session_state.nom and st.session_state.prenom and st.session_state.siret: change_step(1)
-        else: st.error("Champs obligatoires manquants.")
+    render_header("1. Vos informations")
+    st.session_state.nom = st.text_input("NOM *", value=st.session_state.get('nom', ''))
+    st.session_state.prenom = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
+    if st.session_state.nom and st.session_state.prenom:
+        st.button("CONTINUER", on_click=go_to, args=(2,))
 
-# 2. CONTACTS & STATUT
+# 2. STRUCTURE & SIRET
 elif st.session_state.step == 2:
-    st.header("2. Coordonnées & Structure")
-    st.session_state.societe = st.text_input("Société", value=st.session_state.societe)
-    st.session_state.statut = st.selectbox("Statut *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"], index=0)
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
-        st.session_state.tel1 = st.text_input("Tél principal *", value=st.session_state.tel1)
-        st.session_state.tel2 = st.text_input("Tél secondaire", value=st.session_state.tel2)
-    with col_c2:
-        st.session_state.email1 = st.text_input("Email principal *", value=st.session_state.email1)
-        st.session_state.email2 = st.text_input("Email secondaire", value=st.session_state.email2)
+    render_header("2. Coordonnées & Structure")
+    st.session_state.societe = st.text_input("Société", value=st.session_state.get('societe', ''))
+    st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
+    st.session_state.statut = st.selectbox("Statut *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SAS", "Autre"])
+    c1, c2 = st.columns(2)
+    with c1: st.session_state.tel1 = st.text_input("Tél *", value=st.session_state.get('tel1', ''))
+    with c2: st.session_state.email1 = st.text_input("Email *", value=st.session_state.get('email1', ''))
     
-    bc1, bc2 = st.columns(2)
-    with bc1: st.button("RETOUR", on_click=change_step, args=(-1,))
-    with bc2:
-        if st.button("SUIVANT"):
-            if st.session_state.tel1 and st.session_state.email1: change_step(1)
-            else: st.error("Tél et Email obligatoires.")
+    col1, col2 = st.columns(2)
+    with col1: st.button("RETOUR", on_click=go_to, args=(1,))
+    with col2: st.button("SUIVANT", on_click=go_to, args=(3,))
 
-# 3. ATTESTATION
+# 3. ATTESTATION (Instructions URSSAF remises)
 elif st.session_state.step == 3:
-    st.header("3. Attestation de vigilance")
-    st.write("Récupérez votre document sur urssaf.fr")
+    render_header("3. Attestation de vigilance")
+    st.write("👉 Allez sur **urssaf.fr**, rubrique 'Mes documents' puis 'Demander une attestation'.")
     file = st.file_uploader("Téléchargez le PDF *", type=["pdf"])
-    if file: st.session_state['file_bytes'] = file.read()
-    bc1, bc2 = st.columns(2)
-    with bc1: st.button("RETOUR", on_click=change_step, args=(-1,))
-    with bc2:
-        if st.button("SUIVANT"):
-            if 'file_bytes' in st.session_state: change_step(1)
-            else: st.error("L'attestation est obligatoire.")
-
-# 4. ORGANISATION
-elif st.session_state.step == 4:
-    st.header("4. Organisation")
-    st.session_state.org_type = st.radio("Structure *", ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"], index=0)
-    if "Seul" not in st.session_state.org_type:
-        st.session_state.details_org = st.text_input("Détails (noms) :", value=st.session_state.details_org)
-        st.session_state.tels_remp = st.text_area("Tél remplaçants :", value=st.session_state.tels_remp)
-        st.session_state.emails_remp = st.text_area("Emails remplaçants :", value=st.session_state.emails_remp)
+    if file: st.session_state.file_bytes = file.read()
     
-    bc1, bc2 = st.columns(2)
-    with bc1: st.button("RETOUR", on_click=change_step, args=(-1,))
-    with bc2: st.button("SUIVANT", on_click=change_step, args=(1,))
+    col1, col2 = st.columns(2)
+    with col1: st.button("RETOUR", on_click=go_to, args=(2,))
+    with col2: st.button("SUIVANT", on_click=go_to, args=(4,))
+
+# 4. ORGANISATION (Pas de N/A par défaut)
+elif st.session_state.step == 4:
+    render_header("4. Organisation")
+    st.session_state.org_type = st.radio("Structure *", ["Seul", "Seul avec remplaçant", "En équipe"])
+    if st.session_state.org_type != "Seul":
+        st.session_state.details_org = st.text_input("Détails (noms) :", value=st.session_state.get('details_org', ''))
+        st.session_state.tels_remp = st.text_area("Téléphones remplaçants :", value=st.session_state.get('tels_remp', ''))
+    
+    col1, col2 = st.columns(2)
+    with col1: st.button("RETOUR", on_click=go_to, args=(3,))
+    with col2: st.button("SUIVANT", on_click=go_to, args=(5,))
 
 # 5. DISPOS & TARIFS
 elif st.session_state.step == 5:
-    st.header("5. Disponibilités & Tarifs")
-    st.session_state.dispos = st.text_area("Jours et plages horaires ? *", value=st.session_state.dispos)
-    ca, cb = st.columns(2)
-    with ca:
-        st.session_state.maj_dim = st.radio("Majoration Dimanche ?", ["Non", "Oui"], index=0)
-        if st.session_state.maj_dim == "Oui":
-            st.session_state.montant_dim = st.text_input("Montant Dim :", value=st.session_state.montant_dim)
-    with cb:
-        st.session_state.maj_ferie = st.radio("Majoration Fériés ?", ["Non", "Oui"], index=0)
-        if st.session_state.maj_ferie == "Oui":
-            st.session_state.lesquels_ferie = st.text_input("Quels jours ?", value=st.session_state.lesquels_ferie)
-            st.session_state.montant_ferie = st.text_input("Montant Fériés :", value=st.session_state.montant_ferie)
-    
-    bc1, bc2 = st.columns(2)
-    with bc1: st.button("RETOUR", on_click=change_step, args=(-1,))
-    with bc2:
-        if st.button("SUIVANT"):
-            if st.session_state.dispos: change_step(1)
-            else: st.error("Disponibilités obligatoires.")
+    render_header("5. Disponibilités")
+    st.session_state.dispos = st.text_area("Vos disponibilités ?", value=st.session_state.get('dispos', ''))
+    col1, col2 = st.columns(2)
+    with col1: st.button("RETOUR", on_click=go_to, args=(4,))
+    with col2: st.button("SUIVANT", on_click=go_to, args=(6,))
 
-# 6. SECTEUR (FIX DE L'ERREUR DE RECHERCHE)
+# 6. SECTEUR
 elif st.session_state.step == 6:
-    st.header("6. Secteur d'intervention")
-    st.session_state.ville_base = st.selectbox("Ville de départ *", sorted(df_v['affichage'].unique()))
-    st.session_state.rayon = st.slider("Rayon (km) *", 0, 200, value=int(st.session_state.rayon))
+    render_header("6. Secteur")
+    v_base = st.selectbox("Départ", sorted(df_v['affichage'].unique()))
+    rayon = st.slider("Rayon (km)", 0, 150, 30)
     
     if st.button("CALCULER LES VILLES"):
-        v_sel = df_v[df_v['affichage'] == st.session_state.ville_base].iloc[0]
-        lat1, lon1 = float(v_sel['latitude']), float(v_sel['longitude'])
-        
-        # Calcul sécurisé avec conversion float explicite
-        def safe_dist(row):
-            return geodesic((lat1, lon1), (float(row['latitude']), float(row['longitude']))).km
-        
-        df_v['d'] = df_v.apply(safe_dist, axis=1)
-        st.session_state.villes_trouvees = df_v[df_v['d'] <= st.session_state.rayon].sort_values('d')['affichage'].head(100).tolist()
-
-    if st.session_state.villes_trouvees:
-        st.write("Sélectionnez vos villes :")
-        vl = []
-        for v in st.session_state.villes_trouvees:
-            if st.checkbox(v, value=True, key=f"v_{v}"): vl.append(v)
-        st.session_state.villes_finales_list = vl
+        sel = df_v[df_v['affichage'] == v_base].iloc[0]
+        def dist(r): return geodesic((sel['latitude'], sel['longitude']), (r['latitude'], r['longitude'])).km
+        df_v['d'] = df_v.apply(dist, axis=1)
+        st.session_state.villes_trouvees = df_v[df_v['d'] <= rayon]['affichage'].tolist()
     
-    st.session_state.villes_sup = st.text_area("Villes supplémentaires :", value=st.session_state.villes_sup)
-    
-    bc1, bc2 = st.columns(2)
-    with bc1: st.button("RETOUR", on_click=change_step, args=(-1,))
-    with bc2:
-        if st.button("DERNIÈRE ÉTAPE"):
-            if st.session_state.villes_finales_list: change_step(1)
-            else: st.error("Sélectionnez au moins une ville.")
+    if st.session_state.get('villes_trouvees'):
+        st.session_state.villes_finales = st.multiselect("Villes validées", st.session_state.villes_trouvees, default=st.session_state.villes_trouvees)
 
-# 7. FINALISATION
+    col1, col2 = st.columns(2)
+    with col1: st.button("RETOUR", on_click=go_to, args=(5,))
+    with col2: st.button("FINALISER", on_click=go_to, args=(7,))
+
+# 7. ENVOI FINAL
 elif st.session_state.step == 7:
-    st.header("7. Finalisation")
-    st.session_state.info_libre = st.text_area("Notes :", value=st.session_state.info_libre)
+    render_header("7. Finalisation")
+    st.session_state.notes = st.text_area("Notes", value=st.session_state.get('notes', ''))
     
-    bc1, bc2 = st.columns(2)
-    with bc1: st.button("RETOUR", on_click=change_step, args=(-1,))
-    with bc2:
-        if st.button("TRANSMETTRE"):
-            f = st.session_state.get('file_bytes')
-            content = base64.b64encode(f).decode() if f else ""
-            
-            # PAYLOAD AVEC LES NOMS ORIGINAUX POUR TES AUTOMATISATIONS
-            payload = {
-                "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "societe": st.session_state.societe, "statut": st.session_state.statut},
-                "contact": {"tel1": st.session_state.tel1, "tel2": st.session_state.tel2, "email1": st.session_state.email1, "email2": st.session_state.email2},
-                "disponibilites": st.session_state.dispos,
-                "organisation": {"type": st.session_state.org_type, "details": st.session_state.details_org},
-                "tarifs": {"maj_dim": st.session_state.maj_dim, "montant_dim": st.session_state.montant_dim, "maj_fer": st.session_state.maj_ferie, "montant_fer": st.session_state.montant_ferie},
-                "secteur": {
-                    "base": st.session_state.ville_base, 
-                    "villes_selectionnees": st.session_state.villes_finales_list, # NOM ORIGINAL
-                    "villes_sup": st.session_state.villes_sup # NOM ORIGINAL
-                },
-                "attestation": content, 
-                "notes": st.session_state.info_libre
-            }
-            try:
-                r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
-                if r.status_code == 200:
-                    st.session_state.submitted = True
-                    st.balloons()
-                    st.rerun()
-            except: st.error("Erreur connexion.")
+    def handle_submit():
+        f = st.session_state.get('file_bytes')
+        content = base64.b64encode(f).decode() if f else ""
+        payload = {
+            "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "statut": st.session_state.statut},
+            "contact": {"tel1": st.session_state.tel1, "email1": st.session_state.email1},
+            "disponibilites": st.session_state.dispos,
+            "secteur": {"villes_selectionnees": st.session_state.get('villes_finales', []), "villes_sup": st.session_state.get('villes_sup', '')},
+            "attestation": content, "notes": st.session_state.notes
+        }
+        try:
+            r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
+            if r.status_code == 200: st.session_state.step = 8
+        except: st.error("Erreur de connexion.")
+
+    col1, col2 = st.columns(2)
+    with col1: st.button("RETOUR", on_click=go_to, args=(6,))
+    with col2: st.button("TRANSMETTRE", on_click=handle_submit)
+
+elif st.session_state.step == 8:
+    render_header("Merci !")
+    st.balloons()
+    st.write("Votre dossier a été transmis avec succès.")
+    st.button("NOUVEL ENVOI", on_click=lambda: st.session_state.clear())
