@@ -7,7 +7,7 @@ import base64
 # --- CONFIGURATION ---
 st.set_page_config(page_title="LetaHost - Partenaires", layout="centered")
 
-# --- DESIGN CHIRURGICAL (FORCE LE CENTRAGE) ---
+# --- DESIGN ABSOLU (RÉSISTE AUX ERREURS) ---
 def set_design():
     try:
         with open("fond.png", "rb") as f:
@@ -16,54 +16,42 @@ def set_design():
         <style>
         .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}"); background-size: cover; background-attachment: fixed; }}
         
-        /* 1. VISIBILITÉ TOTALE (Texte Noir sur Blanc) */
+        /* TEXTE NOIR SUR BLANC PARTOUT */
         input {{ color: black !important; }}
-        .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox [data-baseweb="select"], .stNumberInput>div>div>input {{ 
+        .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox [data-baseweb="select"] {{ 
             background-color: white !important; color: black !important; font-size: 18px !important; 
         }}
-        /* Fix pour la barre de recherche des villes */
         div[data-baseweb="select"] input {{ color: black !important; }}
-        div[role="listbox"] {{ color: black !important; }}
 
-        /* 2. TITRES IMPOSANTS */
-        h2 {{ font-size: 3.5rem !important; font-weight: 800 !important; color: white !important; text-align: center !important; line-height: 1.1 !important; margin-bottom: 30px !important; }}
+        /* TITRES */
+        h2 {{ font-size: 3.5rem !important; font-weight: 800 !important; color: white !important; text-align: center !important; line-height: 1.1 !important; }}
         
-        /* 3. LE FIX DU CENTRAGE ABSOLU */
-        /* On force le conteneur du bouton à être un bloc Flex centré */
+        /* LE FIX FINAL POUR LES BOUTONS (Même avec Erreur) */
+        /* On cible le conteneur de widget pour forcer le centrage de TOUT ce qui est bouton */
         .stButton {{
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
-            padding: 10px 0 !important;
         }}
 
         .stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
-            border: none !important;
             font-weight: bold !important;
             padding: 12px 30px !important;
             border-radius: 8px !important;
             width: 250px !important;
             text-transform: uppercase;
+            border: none !important;
         }}
         
-        /* Force le centrage même quand il y a deux colonnes (Retour/Suivant) */
-        [data-testid="column"] .stButton {{
-            justify-content: center !important;
+        /* Centrage de l'erreur pour ne pas décaler le visuel */
+        .stAlert {{
+            max-width: 400px !important;
+            margin: 10px auto !important;
         }}
 
         p, label, li, .stMarkdown {{ color: white !important; text-align: center !important; font-size: 1.1rem !important; }}
-        
-        /* Zone de défilement pour les villes */
-        .city-scroll {{
-            max-height: 350px;
-            overflow-y: auto;
-            background: rgba(255,255,255,0.05);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: left !important;
-        }}
         </style>
         ''', unsafe_allow_html=True)
     except: pass
@@ -82,66 +70,55 @@ def render_header(title):
 
 set_design()
 
-# --- CHARGEMENT DES DONNÉES SÉCURISÉ ---
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
-        # Fix pour l'erreur AttributeError 'float' object has no attribute 'split'
-        df['cp_clean'] = df['code_postal'].astype(str).str.split('.').str[0].str.zfill(5)
-        df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
-        df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
-        df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
-        return df.dropna(subset=['latitude', 'longitude', 'affichage'])
-    except: return pd.DataFrame()
-
-df_v = load_data()
-
-# --- NAVIGATION ---
+# --- LOGIQUE ---
 if 'step' not in st.session_state: st.session_state.step = 0
 def go_to(idx): st.session_state.step = idx
 
 # --- ÉTAPES ---
 
-# 0. ACCUEIL
-if st.session_state.step == 0:
-    render_header("Mise à jour Dossier")
-    st.write("Bienvenue sur votre portail partenaire LetaHost.")
-    st.write("Ce questionnaire permet de réactualiser vos informations de prestataire.")
-    st.button("DÉMARRER", on_click=go_to, args=(1,))
-
-# 1. IDENTITÉ
-elif st.session_state.step == 1:
+# 1. VOS INFORMATIONS (Champs obligatoires)
+if st.session_state.step == 1:
     render_header("1. Vos informations")
-    st.session_state.nom = st.text_input("NOM *", value=st.session_state.get('nom', ''))
-    st.session_state.prenom = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
+    nom = st.text_input("NOM *", value=st.session_state.get('nom', ''))
+    prenom = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
     
-    # Le bouton est là, mais on vérifie au clic
+    # On sauvegarde dans le session_state au fur et à mesure
+    st.session_state.nom = nom
+    st.session_state.prenom = prenom
+
     if st.button("CONTINUER"):
-        if st.session_state.nom and st.session_state.prenom:
+        if nom.strip() and prenom.strip():
             go_to(2)
             st.rerun()
         else:
-            st.error("Le Nom et le Prénom sont obligatoires pour continuer.")
+            st.error("Champs obligatoires manquants.")
 
-# 2. STRUCTURE & SIRET
+# 2. STRUCTURE (SIRET obligatoire)
 elif st.session_state.step == 2:
     render_header("2. Coordonnées & Structure")
-    st.session_state.societe = st.text_input("Nom de la société", value=st.session_state.get('societe', ''))
-    st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
-    st.session_state.statut = st.selectbox("Statut juridique *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SAS", "Autre"])
+    societe = st.text_input("Nom de la société", value=st.session_state.get('societe', ''))
+    siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
+    statut = st.selectbox("Statut juridique *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SAS", "Autre"])
     
     c1, c2 = st.columns(2)
-    with c1: st.session_state.tel1 = st.text_input("Téléphone *", value=st.session_state.get('tel1', ''))
-    with c2: st.session_state.email1 = st.text_input("Email *", value=st.session_state.get('email1', ''))
+    with c1: tel = st.text_input("Téléphone *", value=st.session_state.get('tel1', ''))
+    with c2: mail = st.text_input("Email *", value=st.session_state.get('email1', ''))
     
+    st.session_state.societe = societe
+    st.session_state.siret = siret
+    st.session_state.statut = statut
+    st.session_state.tel1 = tel
+    st.session_state.email1 = mail
+
     col_b, col_n = st.columns(2)
     with col_b: st.button("RETOUR", on_click=go_to, args=(1,))
     with col_n: 
         if st.button("SUIVANT"):
-            if st.session_state.siret and st.session_state.tel1 and st.session_state.email1:
-                go_to(3); st.rerun()
-            else: st.error("Champs obligatoires manquants (*).")
+            if siret.strip() and tel.strip() and mail.strip():
+                go_to(3)
+                st.rerun()
+            else:
+                st.error("Champs obligatoires manquants.")
 
 # 3. ATTESTATION (GUIDE URSSAF)
 elif st.session_state.step == 3:
