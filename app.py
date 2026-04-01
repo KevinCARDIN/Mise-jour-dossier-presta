@@ -7,7 +7,7 @@ import base64
 # --- CONFIGURATION & PERFORMANCE ---
 st.set_page_config(page_title="LetaHost - Partenaires", layout="centered")
 
-# --- DESIGN PREMIUM : LE JUSTE MILIEU ---
+# --- DESIGN PREMIUM : CENTRAGE ET VISIBILITÉ ---
 def set_design():
     try:
         with open("fond.png", "rb") as f:
@@ -16,19 +16,22 @@ def set_design():
         <style>
         .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}"); background-size: cover; background-attachment: fixed; }}
         
-        /* VISIBILITÉ : Texte noir dans les champs et recherches */
+        /* VISIBILITÉ DES INPUTS : Texte noir */
         input {{ color: black !important; }}
-        .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox [data-baseweb="select"] {{ 
+        .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox [data-baseweb="select"], .stNumberInput>div>div>input {{ 
             background-color: white !important; 
             color: black !important; 
             font-size: 18px !important; 
         }}
+        
+        /* Correction visibilité recherche villes */
         div[data-baseweb="select"] input {{ color: black !important; }}
+        div[data-baseweb="select"] * {{ color: black !important; }}
 
         /* TITRES IMPOSANTS */
         h2 {{ font-size: 3.5rem !important; font-weight: 800 !important; color: white !important; text-align: center !important; line-height: 1.1 !important; margin-bottom: 30px !important; }}
         
-        /* MÉTHODE DE BOUTON "PARFAITE" (CENTRAGE CSS) */
+        /* MÉTHODE DE CENTRAGE DES BOUTONS "PARFAITE" */
         div.stButton > button {{
             background-color: #f1c40f !important;
             color: #000000 !important;
@@ -37,21 +40,16 @@ def set_design():
             padding: 12px 30px !important;
             border-radius: 8px !important;
             display: block !important;
-            margin: 0 auto !important; /* CENTRAGE MILIEU */
+            margin: 0 auto !important; /* FORCE LE CENTRAGE HORIZONTAL */
             width: 250px !important;
             text-transform: uppercase;
         }}
         
-        /* Alignement des duos de boutons */
+        /* Alignement des paires de boutons (RETOUR/SUIVANT) */
         div[data-testid="stHorizontalBlock"]:has(button) {{
             justify-content: center !important;
-            gap: 20px !important;
         }}
-        div[data-testid="stHorizontalBlock"]:has(button) > div {{
-            flex: none !important;
-            width: auto !important;
-        }}
-
+        
         p, label, li, .stMarkdown {{ color: white !important; text-align: center !important; font-size: 1.1rem !important; }}
         
         /* Zone scrollable pour les villes */
@@ -81,7 +79,7 @@ def render_header(title):
 
 set_design()
 
-# --- CHARGEMENT DONNÉES ---
+# --- CHARGEMENT DONNÉES SÉCURISÉ ---
 @st.cache_data
 def load_data():
     try:
@@ -95,7 +93,7 @@ def load_data():
 
 df_v = load_data()
 
-# --- NAVIGATION ---
+# --- LOGIQUE ---
 if 'step' not in st.session_state: st.session_state.step = 0
 def go_to(idx): st.session_state.step = idx
 
@@ -119,14 +117,14 @@ elif st.session_state.step == 1:
             go_to(2)
             st.rerun()
         else:
-            st.error("Nom et Prénom sont obligatoires.")
+            st.error("Le Nom et le Prénom sont obligatoires.")
 
 # 2. STRUCTURE (SIRET ICI)
 elif st.session_state.step == 2:
     render_header("2. Coordonnées & Structure")
     st.session_state.societe = st.text_input("Nom de la société", value=st.session_state.get('societe', ''))
     st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
-    st.session_state.statut = st.selectbox("Statut juridique *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
+    st.session_state.statut = st.selectbox("Statut juridique *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SAS", "Autre"])
     
     c1, c2 = st.columns(2)
     with c1: st.session_state.tel1 = st.text_input("Téléphone *", value=st.session_state.get('tel1', ''))
@@ -144,11 +142,11 @@ elif st.session_state.step == 2:
 elif st.session_state.step == 3:
     render_header("3. Attestation de vigilance")
     st.markdown('''<div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:10px; text-align:left;">
-    <b>👉 Comment récupérer votre attestation :</b><br>
-    1. Connectez-vous sur <b>urssaf.fr</b><br>
+    <b>👉 Procédure pour récupérer votre document :</b><br>
+    1. Connectez-vous sur votre compte <b>urssaf.fr</b><br>
     2. Rubrique <b>« Mes documents »</b><br>
     3. Cliquez sur <b>« Demander une attestation »</b><br>
-    4. Sélectionnez <b>« Attestation de vigilance »</b>.</div>''', unsafe_allow_html=True)
+    4. Sélectionnez <b>« Attestation de vigilance »</b> et téléchargez.</div>''', unsafe_allow_html=True)
     file = st.file_uploader("Joindre le PDF *", type=["pdf"])
     if file: st.session_state.file_bytes = file.read()
     
@@ -159,7 +157,7 @@ elif st.session_state.step == 3:
             if 'file_bytes' in st.session_state: go_to(4); st.rerun()
             else: st.error("L'attestation est obligatoire.")
 
-# 4. ORGANISATION
+# 4. ORGANISATION (TOUS LES CHOIX)
 elif st.session_state.step == 4:
     render_header("4. Organisation")
     options = ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"]
@@ -193,7 +191,7 @@ elif st.session_state.step == 5:
         if st.session_state.dispos: go_to(6); st.rerun()
         else: st.error("Veuillez renseigner vos disponibilités.")
 
-# 6. SECTEUR (RETOUR LISTE À COCHER)
+# 6. SECTEUR (LISTE À COCHER)
 elif st.session_state.step == 6:
     render_header("6. Secteur")
     v_base = st.selectbox("Ville de départ", sorted(df_v['affichage'].unique()) if not df_v.empty else [])
@@ -233,10 +231,8 @@ elif st.session_state.step == 7:
         content = base64.b64encode(f).decode() if f else ""
         payload = {
             "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "statut": st.session_state.statut},
-            "contact": {"tel": st.session_state.tel1, "email": st.session_state.email1},
-            "disponibilites": st.session_state.dispos,
             "tarifs": {"dimanche": st.session_state.get('montant_dim'), "feries": st.session_state.get('montant_ferie')},
-            "secteur": {"villes_selectionnees": st.session_state.get('villes_finales_list', [])},
+            "secteur": {"villes_selectionnees": st.session_state.get('villes_finales_list', []), "villes_sup": st.session_state.get('villes_sup')},
             "notes": st.session_state.notes, "attestation": content
         }
         try:
