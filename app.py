@@ -16,7 +16,11 @@ def set_design():
         <style>
         .stApp {{ background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url("data:image/png;base64,{bin_str}"); background-size: cover; background-attachment: fixed; }}
         
-        /* TEXTE PLUS GROS POUR LES INPUTS (Feedback vidéo) */
+        /* FORCE LE TEXTE EN NOIR DANS LES RECHERCHES ET INPUTS */
+        input {{ color: black !important; }}
+        div[data-baseweb="select"] input {{ color: black !important; }}
+        div[role="listbox"] {{ color: black !important; }}
+
         .stTextInput>div>div>input, .stTextArea>div>textarea, .stSelectbox>div>div, .stNumberInput>div>div>input {{ 
             background-color: white !important; color: black !important; font-size: 18px !important; border-radius: 8px !important;
         }}
@@ -24,7 +28,7 @@ def set_design():
         /* TITRES TRÈS IMPOSANTS */
         h2 {{ font-size: 3.5rem !important; font-weight: 800 !important; color: white !important; text-align: center !important; line-height: 1.1 !important; margin-bottom: 30px !important; }}
         
-        /* BOUTONS JAUNES CENTRÉS */
+        /* TA STRUCTURE DE BOUTONS PARFAITE (INCHANGÉE) */
         div.stButton > button {{ 
             background-color: #f1c40f !important; color: black !important; font-weight: bold !important; 
             border-radius: 8px !important; text-transform: uppercase !important; border: none !important;
@@ -34,7 +38,16 @@ def set_design():
         p, label, li, .stMarkdown {{ color: white !important; text-align: center !important; font-size: 1.1rem !important; }}
         [data-testid="column"] {{ display: flex !important; justify-content: center !important; align-items: center !important; }}
         
-        /* Centrage spécifique pour les listes à puces (Guide Step 3) */
+        /* Zone scrollable pour la liste des villes */
+        .city-scroll {{
+            max-height: 350px;
+            overflow-y: auto;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: left !important;
+        }}
+
         .guide-box {{ text-align: left !important; background-color: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2); }}
         .guide-box li {{ text-align: left !important; margin-bottom: 10px; font-size: 1rem !important; }}
         </style>
@@ -55,24 +68,22 @@ def render_header(title):
 
 set_design()
 
-# --- CHARGEMENT SÉCURISÉ DU CSV (Fix AttributeError & TypeError) ---
+# --- CHARGEMENT SÉCURISÉ ---
 @st.cache_data
 def load_data():
     try:
         df = pd.read_csv("villes_france.csv", usecols=['nom', 'latitude', 'longitude', 'code_postal'])
-        # Nettoyage robuste des codes postaux (Fix float split error)
         df['cp_clean'] = df['code_postal'].astype(str).str.split('.').str[0].str.zfill(5)
         df['affichage'] = df['nom'] + " (" + df['cp_clean'] + ")"
-        # Conversion numérique pour le calcul de distance (Fix TypeError step 6)
         df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
         df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
         return df.dropna(subset=['latitude', 'longitude', 'affichage'])
     except:
-        return pd.DataFrame(columns=['nom', 'latitude', 'longitude', 'affichage'])
+        return pd.DataFrame()
 
 df_v = load_data()
 
-# --- NAVIGATION SANS DOUBLE-CLIC ---
+# --- NAVIGATION ---
 if 'step' not in st.session_state: st.session_state.step = 0
 def go_to(idx): st.session_state.step = idx
 
@@ -89,27 +100,37 @@ if st.session_state.step == 0:
 # 1. IDENTITÉ
 elif st.session_state.step == 1:
     render_header("1. Vos informations")
-    st.session_state.nom = st.text_input("NOM *", value=st.session_state.get('nom', ''))
-    st.session_state.prenom = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
-    if st.session_state.nom and st.session_state.prenom:
-        _, col_btn, _ = st.columns([1, 1.5, 1])
-        with col_btn: st.button("CONTINUER", on_click=go_to, args=(2,), use_container_width=True)
+    nom = st.text_input("NOM *", value=st.session_state.get('nom', ''))
+    prenom = st.text_input("Prénom *", value=st.session_state.get('prenom', ''))
+    
+    _, col_btn, _ = st.columns([1, 1.5, 1])
+    with col_btn:
+        if st.button("CONTINUER", use_container_width=True):
+            if nom.strip() and prenom.strip():
+                st.session_state.nom, st.session_state.prenom = nom, prenom
+                go_to(2); st.rerun()
+            else: st.error("Nom et Prénom sont obligatoires.")
 
-# 2. STRUCTURE (SIRET ICI)
+# 2. STRUCTURE & SIRET
 elif st.session_state.step == 2:
     render_header("2. Coordonnées & Structure")
-    st.session_state.societe = st.text_input("Nom de la société", value=st.session_state.get('societe', ''))
-    st.session_state.siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
-    st.session_state.statut = st.selectbox("Statut juridique *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
+    societe = st.text_input("Nom de la société", value=st.session_state.get('societe', ''))
+    siret = st.text_input("Numéro SIRET *", value=st.session_state.get('siret', ''))
+    statut = st.selectbox("Statut juridique *", ["Auto/Micro-Entrepreneur (EI)", "EURL", "SARL", "SA", "SAS", "SASU", "Autre"])
     c1, c2 = st.columns(2)
-    with c1: st.session_state.tel1 = st.text_input("Téléphone *", value=st.session_state.get('tel1', ''))
-    with c2: st.session_state.email1 = st.text_input("Email *", value=st.session_state.get('email1', ''))
+    with c1: tel = st.text_input("Téléphone *", value=st.session_state.get('tel1', ''))
+    with c2: mail = st.text_input("Email *", value=st.session_state.get('email1', ''))
     
     cb1, cb2 = st.columns(2)
     with cb1: st.button("RETOUR", on_click=go_to, args=(1,), use_container_width=True)
-    with cb2: st.button("SUIVANT", on_click=go_to, args=(3,), use_container_width=True)
+    with cb2: 
+        if st.button("SUIVANT", use_container_width=True):
+            if siret.strip() and tel.strip() and mail.strip():
+                st.session_state.update({"societe":societe, "siret":siret, "statut":statut, "tel1":tel, "email1":mail})
+                go_to(3); st.rerun()
+            else: st.error("Veuillez remplir les champs obligatoires (*).")
 
-# 3. ATTESTATION (GUIDE DESCRIPTIF COMPLET)
+# 3. ATTESTATION (GUIDE URSSAF)
 elif st.session_state.step == 3:
     render_header("3. Attestation de vigilance")
     st.markdown('''
@@ -128,27 +149,30 @@ elif st.session_state.step == 3:
     
     cb1, cb2 = st.columns(2)
     with cb1: st.button("RETOUR", on_click=go_to, args=(2,), use_container_width=True)
-    with cb2: st.button("SUIVANT", on_click=go_to, args=(4,), use_container_width=True)
+    with cb2: 
+        if st.button("SUIVANT", use_container_width=True):
+            if 'file_bytes' in st.session_state: go_to(4); st.rerun()
+            else: st.error("L'attestation PDF est obligatoire.")
 
-# 4. ORGANISATION (TOUS LES CHOIX RESTAURÉS)
+# 4. ORGANISATION
 elif st.session_state.step == 4:
     render_header("4. Organisation")
     options_org = ["Seul, sans remplaçant même ponctuel", "Seul, avec un remplaçant ponctuel", "Avec 1 ou 2 collaborateurs", "En équipe", "Autre"]
-    st.session_state.org_type = st.radio("Travaillez-vous seul ou à plusieurs ? *", options_org)
+    org_type = st.radio("Structure de travail *", options_org)
+    st.session_state.org_type = org_type
     
-    if "Seul, sans" not in st.session_state.org_type:
-        st.session_state.details_org = st.text_input("Noms des collaborateurs :", value=st.session_state.get('details_org', ''))
+    if "Seul, sans" not in org_type:
+        st.session_state.details_org = st.text_input("Noms des intervenants :", value=st.session_state.get('details_org', ''))
         st.session_state.tels_remp = st.text_area("Téléphones :", value=st.session_state.get('tels_remp', ''))
     
     cb1, cb2 = st.columns(2)
     with cb1: st.button("RETOUR", on_click=go_to, args=(3,), use_container_width=True)
     with cb2: st.button("SUIVANT", on_click=go_to, args=(5,), use_container_width=True)
 
-# 5. DISPOS & TARIFS (RESTAURATION DIMANCHES / FÉRIÉS)
+# 5. DISPOS & TARIFS
 elif st.session_state.step == 5:
     render_header("5. Disponibilités & Tarifs")
-    st.session_state.dispos = st.text_area("Vos jours et plages horaires ?", value=st.session_state.get('dispos', ''))
-    
+    dispos = st.text_area("Vos jours et plages horaires ?", value=st.session_state.get('dispos', ''))
     st.markdown("---")
     c_dim, c_fer = st.columns(2)
     with c_dim:
@@ -163,57 +187,76 @@ elif st.session_state.step == 5:
     
     cb1, cb2 = st.columns(2)
     with cb1: st.button("RETOUR", on_click=go_to, args=(4,), use_container_width=True)
-    with cb2: st.button("SUIVANT", on_click=go_to, args=(6,), use_container_width=True)
+    with cb2: 
+        if st.button("SUIVANT", use_container_width=True):
+            if dispos.strip():
+                st.session_state.dispos = dispos
+                go_to(6); st.rerun()
+            else: st.error("Veuillez renseigner vos disponibilités.")
 
-# 6. SECTEUR (FIX TYPEERROR & LENTEUR)
+# 6. SECTEUR (LISTE À COCHER AMÉLIORÉE)
 elif st.session_state.step == 6:
     render_header("6. Secteur")
-    if df_v.empty:
-        st.error("Données des villes indisponibles.")
-    else:
-        v_base = st.selectbox("Ville de départ", sorted(df_v['affichage'].unique()))
-        rayon = st.slider("Rayon (km)", 0, 150, st.session_state.get('rayon', 30))
-        
+    v_base = st.selectbox("Ville de départ", sorted(df_v['affichage'].unique()) if not df_v.empty else [])
+    rayon = st.slider("Rayon (km)", 0, 150, st.session_state.get('rayon', 30))
+    
+    _, col_calc, _ = st.columns([1, 1.5, 1])
+    with col_calc:
         if st.button("CALCULER LES VILLES", use_container_width=True):
             sel = df_v[df_v['affichage'] == v_base].iloc[0]
             lat1, lon1 = float(sel['latitude']), float(sel['longitude'])
-            def fast_dist(row): return geodesic((lat1, lon1), (row['latitude'], row['longitude'])).km
-            df_v['d'] = df_v.apply(fast_dist, axis=1)
-            st.session_state.villes_trouvees = df_v[df_v['d'] <= rayon]['affichage'].tolist()
-        
-        if st.session_state.get('villes_trouvees'):
-            st.session_state.villes_finales = st.multiselect("Villes validées", st.session_state.villes_trouvees, default=st.session_state.villes_trouvees)
+            def dist(row): return geodesic((lat1, lon1), (row['latitude'], row['longitude'])).km
+            df_v['d'] = df_v.apply(dist, axis=1)
+            st.session_state.villes_trouvees = df_v[df_v['d'] <= rayon].sort_values('d')['affichage'].tolist()
+            st.session_state.rayon = rayon
 
+    if st.session_state.get('villes_trouvees'):
+        st.write("Décochez les villes où vous n'intervenez pas :")
+        v_finales = []
+        st.markdown('<div class="city-scroll">', unsafe_allow_html=True)
+        for v in st.session_state.villes_trouvees:
+            if st.checkbox(v, value=True, key=f"v_{v}"): v_finales.append(v)
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.session_state.villes_finales_list = v_finales
+
+    st.session_state.villes_sup = st.text_area("Autres villes (manuelles) :", value=st.session_state.get('villes_sup', ''))
+    
     cb1, cb2 = st.columns(2)
     with cb1: st.button("RETOUR", on_click=go_to, args=(5,), use_container_width=True)
-    with cb2: st.button("FINALISER", on_click=go_to, args=(7,), use_container_width=True)
+    with cb2: 
+        if st.button("FINALISER", use_container_width=True):
+            if st.session_state.get('villes_finales_list'): go_to(7); st.rerun()
+            else: st.error("Sélectionnez au moins une ville.")
 
 # 7. FINALISATION
 elif st.session_state.step == 7:
     render_header("7. Finalisation")
-    st.session_state.notes = st.text_area("Autres notes :", value=st.session_state.get('notes', ''))
+    # Libellé mis à jour selon ta demande
+    st.session_state.notes = st.text_area("Avez-vous d'autres informations à nous communiquer ?", value=st.session_state.get('notes', ''))
     
     def submit():
         f = st.session_state.get('file_bytes')
         content = base64.b64encode(f).decode() if f else ""
         payload = {
-            "identite": {"nom": st.session_state.nom, "prenom": st.session_state.prenom, "siret": st.session_state.siret, "statut": st.session_state.statut},
-            "tarifs": {"maj_dim": st.session_state.get('maj_dim'), "montant_dim": st.session_state.get('montant_dim'), "maj_ferie": st.session_state.get('maj_ferie')},
-            "secteur": {"villes_selectionnees": st.session_state.get('villes_finales', [])},
+            "identite": {"nom": st.session_state.get('nom'), "prenom": st.session_state.get('prenom'), "siret": st.session_state.get('siret'), "statut": st.session_state.get('statut')},
+            "tarifs": {"dimanche": st.session_state.get('montant_dim'), "feries": st.session_state.get('montant_ferie')},
+            "secteur": {"villes_selectionnees": st.session_state.get('villes_finales_list', []), "villes_sup": st.session_state.get('villes_sup')},
             "notes": st.session_state.notes, "attestation": content
         }
         try:
             r = requests.post("https://hub.cardin.cloud/webhook/Miseàjourdossierpresta", json=payload)
-            if r.status_code == 200: st.session_state.step = 8
+            if r.status_code == 200: go_to(8); st.rerun()
         except: st.error("Erreur de transmission.")
 
     cb1, cb2 = st.columns(2)
     with cb1: st.button("RETOUR", on_click=go_to, args=(6,), use_container_width=True)
-    with cb2: st.button("TRANSMETTRE", on_click=submit, use_container_width=True)
+    with cb2: 
+        if st.button("TRANSMETTRE", use_container_width=True): submit()
 
 # 8. MERCI
 elif st.session_state.step == 8:
     render_header("Merci !")
     st.balloons()
     st.write("Votre dossier a été transmis avec succès.")
-    st.button("NOUVEL ENVOI", on_click=lambda: st.session_state.clear(), use_container_width=True)
+    _, col_btn, _ = st.columns([1, 1.5, 1])
+    with col_btn: st.button("RETOUR À L'ACCUEIL", on_click=lambda: st.session_state.clear(), use_container_width=True)
