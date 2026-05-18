@@ -161,6 +161,36 @@ def prefill_from_item(item):
     return {k: cv.get(cid, "") for k, cid in COL.items()}
 
 
+def parse_nom_from_title(title):
+    """Déduit prénom / nom / société depuis le titre de ligne Monday
+    ("Prénom NOM - Société", éventuellement "Prénom NOM / autre personne")."""
+    raw = (title or "").strip()
+    societe = ""
+    if " - " in raw:
+        name_part, societe = raw.split(" - ", 1)
+    else:
+        name_part = raw
+    name_part = name_part.strip()
+    societe = societe.strip()
+    if "/" in name_part:
+        name_part = name_part.split("/")[0].strip()
+    words = name_part.split()
+    n_caps = 0
+    for w in reversed(words):
+        if w.isupper() and any(c.isalpha() for c in w):
+            n_caps += 1
+        else:
+            break
+    if 0 < n_caps < len(words):
+        prenom = " ".join(words[:len(words) - n_caps])
+        nom = " ".join(words[len(words) - n_caps:])
+    elif words:
+        prenom, nom = words[0], " ".join(words[1:])
+    else:
+        prenom, nom = "", ""
+    return prenom, nom, societe
+
+
 def write_item(item_id, vals):
     q = """mutation ($board: ID!, $item: ID!, $vals: JSON!) {
         change_multiple_column_values (board_id: $board, item_id: $item, column_values: $vals) { id }
@@ -204,9 +234,10 @@ if st.session_state.get("loaded_item") != str(item_id):
         st.error("Aucun prestataire trouvé pour cet identifiant.")
         st.stop()
     pre = prefill_from_item(item)
-    st.session_state["f_nom"] = pre["nom"]
-    st.session_state["f_prenom"] = pre["prenom"]
-    st.session_state["f_societe"] = pre["societe"]
+    t_prenom, t_nom, t_societe = parse_nom_from_title(item["name"])
+    st.session_state["f_nom"] = pre["nom"] or t_nom
+    st.session_state["f_prenom"] = pre["prenom"] or t_prenom
+    st.session_state["f_societe"] = pre["societe"] or t_societe
     st.session_state["f_statut"] = pre["statut"] if pre["statut"] in STATUTS else ""
     st.session_state["f_siret"] = pre["siret"]
     st.session_state["f_tel"] = pre["tel"]
